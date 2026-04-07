@@ -23,6 +23,7 @@ import AccessManagement from "./pages/AccessManagement";
 import SettingsPage from "./pages/Settings";
 import Sync from "./pages/Sync";
 import NotFound from "./pages/NotFound";
+import { PWAInstallPrompt } from "@/components/PWAInstallPrompt";
 
 const queryClient = new QueryClient();
 
@@ -72,6 +73,7 @@ const App = () => {
           <Toaster />
           <Sonner />
           <AppRoutes />
+          <PWAInstallPrompt />
         </AuthProvider>
       </TooltipProvider>
     </QueryClientProvider>
