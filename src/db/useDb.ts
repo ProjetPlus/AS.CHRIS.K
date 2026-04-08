@@ -7,7 +7,7 @@ function useSupabaseTable<T>(table: string) {
   const [loading, setLoading] = useState(true);
 
   const fetchData = useCallback(async () => {
-    const { data: rows } = await supabase.from(table).select("*").order("created_at", { ascending: false });
+    const { data: rows } = await (supabase as any).from(table).select("*").order("created_at", { ascending: false });
     setData((rows || []) as unknown as T[]);
     setLoading(false);
   }, [table]);
