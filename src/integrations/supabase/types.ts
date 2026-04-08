@@ -14,7 +14,272 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      app_users: {
+        Row: {
+          created_at: string
+          display_name: string
+          id: string
+          is_active: boolean
+          password_hash: string
+          role: string
+          username: string
+        }
+        Insert: {
+          created_at?: string
+          display_name: string
+          id?: string
+          is_active?: boolean
+          password_hash: string
+          role?: string
+          username: string
+        }
+        Update: {
+          created_at?: string
+          display_name?: string
+          id?: string
+          is_active?: boolean
+          password_hash?: string
+          role?: string
+          username?: string
+        }
+        Relationships: []
+      }
+      contributions: {
+        Row: {
+          amount: number
+          created_at: string
+          date: string | null
+          death_id: string
+          expected_amount: number
+          id: string
+          member_id: string
+          member_name: string
+          payment_method: string
+          proof_data: string | null
+          proof_type: string | null
+          status: string
+        }
+        Insert: {
+          amount?: number
+          created_at?: string
+          date?: string | null
+          death_id: string
+          expected_amount?: number
+          id?: string
+          member_id: string
+          member_name: string
+          payment_method?: string
+          proof_data?: string | null
+          proof_type?: string | null
+          status?: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          date?: string | null
+          death_id?: string
+          expected_amount?: number
+          id?: string
+          member_id?: string
+          member_name?: string
+          payment_method?: string
+          proof_data?: string | null
+          proof_type?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contributions_death_id_fkey"
+            columns: ["death_id"]
+            isOneToOne: false
+            referencedRelation: "deaths"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      deaths: {
+        Row: {
+          created_at: string
+          date_of_death: string
+          deceased_member_id: string
+          deceased_name: string
+          id: string
+          payout: number
+          retained: number
+          status: string
+          total_collected: number
+          total_expected_contributions: number
+          type: string
+        }
+        Insert: {
+          created_at?: string
+          date_of_death: string
+          deceased_member_id: string
+          deceased_name: string
+          id?: string
+          payout?: number
+          retained?: number
+          status?: string
+          total_collected?: number
+          total_expected_contributions?: number
+          type: string
+        }
+        Update: {
+          created_at?: string
+          date_of_death?: string
+          deceased_member_id?: string
+          deceased_name?: string
+          id?: string
+          payout?: number
+          retained?: number
+          status?: string
+          total_collected?: number
+          total_expected_contributions?: number
+          type?: string
+        }
+        Relationships: []
+      }
+      members: {
+        Row: {
+          adhesion_paid: boolean
+          campement: string
+          contribution_status: string
+          created_at: string
+          first_name: string
+          id: string
+          id_number: string | null
+          id_type: string
+          last_name: string
+          member_id: string
+          phone: string
+          phone_secondary: string | null
+          photo: string | null
+          registration_date: string
+          secondary_members: Json
+          sous_prefecture: string
+          status: string
+          total_covered_persons: number
+          updated_at: string
+          whatsapp: string | null
+        }
+        Insert: {
+          adhesion_paid?: boolean
+          campement?: string
+          contribution_status?: string
+          created_at?: string
+          first_name: string
+          id?: string
+          id_number?: string | null
+          id_type?: string
+          last_name: string
+          member_id: string
+          phone: string
+          phone_secondary?: string | null
+          photo?: string | null
+          registration_date?: string
+          secondary_members?: Json
+          sous_prefecture?: string
+          status?: string
+          total_covered_persons?: number
+          updated_at?: string
+          whatsapp?: string | null
+        }
+        Update: {
+          adhesion_paid?: boolean
+          campement?: string
+          contribution_status?: string
+          created_at?: string
+          first_name?: string
+          id?: string
+          id_number?: string | null
+          id_type?: string
+          last_name?: string
+          member_id?: string
+          phone?: string
+          phone_secondary?: string | null
+          photo?: string | null
+          registration_date?: string
+          secondary_members?: Json
+          sous_prefecture?: string
+          status?: string
+          total_covered_persons?: number
+          updated_at?: string
+          whatsapp?: string | null
+        }
+        Relationships: []
+      }
+      settings: {
+        Row: {
+          adhesion_fee: number
+          association_name: string
+          contribution_amount: number
+          created_at: string
+          id: string
+          initials: string
+          phone: string
+          principal_payout: number
+          secondary_payout: number
+          secondary_retained: number
+          updated_at: string
+        }
+        Insert: {
+          adhesion_fee?: number
+          association_name?: string
+          contribution_amount?: number
+          created_at?: string
+          id?: string
+          initials?: string
+          phone?: string
+          principal_payout?: number
+          secondary_payout?: number
+          secondary_retained?: number
+          updated_at?: string
+        }
+        Update: {
+          adhesion_fee?: number
+          association_name?: string
+          contribution_amount?: number
+          created_at?: string
+          id?: string
+          initials?: string
+          phone?: string
+          principal_payout?: number
+          secondary_payout?: number
+          secondary_retained?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      treasury: {
+        Row: {
+          id: string
+          pending_contributions: number
+          retained_reserves: number
+          total_balance: number
+          total_contributions_collected: number
+          total_payouts: number
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          pending_contributions?: number
+          retained_reserves?: number
+          total_balance?: number
+          total_contributions_collected?: number
+          total_payouts?: number
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          pending_contributions?: number
+          retained_reserves?: number
+          total_balance?: number
+          total_contributions_collected?: number
+          total_payouts?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
