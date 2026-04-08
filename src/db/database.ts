@@ -1,5 +1,6 @@
-import Dexie, { type Table } from 'dexie';
+import { supabase } from "@/integrations/supabase/client";
 
+// Types matching Supabase schema
 export interface DbSecondaryMember {
   id: string;
   name: string;
@@ -9,143 +10,131 @@ export interface DbSecondaryMember {
 }
 
 export interface DbMember {
-  id?: number;
-  memberId: string;
-  firstName: string;
-  lastName: string;
+  id: string;
+  member_id: string;
+  first_name: string;
+  last_name: string;
   phone: string;
-  phoneSecondary?: string;
+  phone_secondary?: string;
   whatsapp?: string;
   campement: string;
-  sousPrefecture: string;
-  idType: string;
-  idNumber: string;
+  sous_prefecture: string;
+  id_type: string;
+  id_number?: string;
   photo?: string;
-  registrationDate: string;
+  registration_date: string;
   status: "actif" | "suspendu" | "décédé";
-  adhesionPaid: boolean;
-  secondaryMembers: DbSecondaryMember[];
-  totalCoveredPersons: number;
-  contributionStatus: "à_jour" | "en_retard";
+  adhesion_paid: boolean;
+  secondary_members: DbSecondaryMember[];
+  total_covered_persons: number;
+  contribution_status: "à_jour" | "en_retard";
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface DbDeath {
-  id?: number;
-  deceasedName: string;
-  deceasedMemberId: string;
-  dateOfDeath: string;
+  id: string;
+  deceased_name: string;
+  deceased_member_id: string;
+  date_of_death: string;
   type: "principal" | "secondaire";
   payout: number;
   retained: number;
-  totalExpectedContributions: number;
-  totalCollected: number;
+  total_expected_contributions: number;
+  total_collected: number;
   status: "en_cours" | "clôturé";
+  created_at?: string;
 }
 
 export interface DbContribution {
-  id?: number;
-  memberId: string;
-  memberName: string;
-  deathId: number;
+  id: string;
+  member_id: string;
+  member_name: string;
+  death_id: string;
   amount: number;
-  expectedAmount: number;
-  paymentMethod: "especes" | "wave" | "orange" | "mtn" | "moov";
+  expected_amount: number;
+  payment_method: "especes" | "wave" | "orange" | "mtn" | "moov";
   status: "payé" | "non_payé" | "partiel" | "exonéré";
   date?: string;
-  proofType?: "transaction_id" | "photo";
-  proofData?: string;
+  proof_type?: string;
+  proof_data?: string;
+  created_at?: string;
 }
 
 export interface DbTreasury {
-  id?: number;
-  totalBalance: number;
-  totalContributionsCollected: number;
-  totalPayouts: number;
-  retainedReserves: number;
-  pendingContributions: number;
+  id: string;
+  total_balance: number;
+  total_contributions_collected: number;
+  total_payouts: number;
+  retained_reserves: number;
+  pending_contributions: number;
+  updated_at?: string;
 }
 
 export interface DbUser {
-  id?: number;
+  id: string;
   username: string;
-  password: string;
+  password_hash: string;
   role: "super_admin" | "admin" | "lecture_seule" | "cotisations" | "membres" | "imprimeur";
-  displayName: string;
-  isActive: boolean;
+  display_name: string;
+  is_active: boolean;
+  created_at?: string;
 }
 
-class CampBethelDB extends Dexie {
-  members!: Table<DbMember, number>;
-  deaths!: Table<DbDeath, number>;
-  contributions!: Table<DbContribution, number>;
-  treasury!: Table<DbTreasury, number>;
-  users!: Table<DbUser, number>;
-
-  constructor() {
-    super('campbethel');
-    this.version(2).stores({
-      members: '++id, memberId, firstName, lastName, phone, campement, status, sousPrefecture',
-      deaths: '++id, deceasedMemberId, status, dateOfDeath',
-      contributions: '++id, memberId, deathId, status',
-      treasury: '++id',
-      users: '++id, username',
-    });
-  }
+export interface DbSettings {
+  id: string;
+  association_name: string;
+  initials: string;
+  phone: string;
+  contribution_amount: number;
+  adhesion_fee: number;
+  principal_payout: number;
+  secondary_payout: number;
+  secondary_retained: number;
 }
 
-export const db = new CampBethelDB();
-
-// Generate next member ID: MSCB-YY-NNN
+// Generate next member ID: MSCB-YY-NNN (uses settings initials)
 export async function generateMemberId(): Promise<string> {
+  const { data: settings } = await supabase.from("settings").select("initials").limit(1).single();
+  const initials = settings?.initials || "MSCB";
   const year = new Date().getFullYear().toString().slice(-2);
-  const prefix = `MSCB-${year}-`;
-  const allMembers = await db.members.toArray();
-  const thisYearMembers = allMembers.filter(m => m.memberId.startsWith(prefix));
-  const maxNum = thisYearMembers.reduce((max, m) => {
-    const num = parseInt(m.memberId.split('-')[2], 10);
+  const prefix = `${initials}-${year}-`;
+  
+  const { data: members } = await supabase
+    .from("members")
+    .select("member_id")
+    .like("member_id", `${prefix}%`);
+  
+  const maxNum = (members || []).reduce((max, m) => {
+    const parts = m.member_id.split("-");
+    const num = parseInt(parts[parts.length - 1], 10);
     return isNaN(num) ? max : Math.max(max, num);
   }, 0);
-  const nextNum = String(maxNum + 1).padStart(3, '0');
+  
+  const nextNum = String(maxNum + 1).padStart(3, "0");
   return `${prefix}${nextNum}`;
-}
-
-// Seed database with initial data on first run
-export async function seedDatabase() {
-  // Ensure admin user exists
-  const adminExists = await db.users.where('username').equals('admin').first();
-  if (!adminExists) {
-    await db.users.add({
-      username: 'admin',
-      password: '12345678',
-      role: 'super_admin',
-      displayName: 'Super Admin',
-      isActive: true,
-    });
-  }
-
-  // Seed treasury if empty
-  const treasuryCount = await db.treasury.count();
-  if (treasuryCount === 0) {
-    await db.treasury.add({
-      totalBalance: 0,
-      totalContributionsCollected: 0,
-      totalPayouts: 0,
-      retainedReserves: 0,
-      pendingContributions: 0,
-    });
-  }
 }
 
 // Export all data as JSON
 export async function exportAllData(): Promise<string> {
+  const [members, deaths, contributions, treasury, users, settings] = await Promise.all([
+    supabase.from("members").select("*"),
+    supabase.from("deaths").select("*"),
+    supabase.from("contributions").select("*"),
+    supabase.from("treasury").select("*"),
+    supabase.from("app_users").select("id, username, role, display_name, is_active, created_at"),
+    supabase.from("settings").select("*"),
+  ]);
+  
   const data = {
-    members: await db.members.toArray(),
-    deaths: await db.deaths.toArray(),
-    contributions: await db.contributions.toArray(),
-    treasury: await db.treasury.toArray(),
-    users: await db.users.toArray(),
+    members: members.data || [],
+    deaths: deaths.data || [],
+    contributions: contributions.data || [],
+    treasury: treasury.data || [],
+    users: users.data || [],
+    settings: settings.data || [],
     exportDate: new Date().toISOString(),
-    version: 2,
+    version: 3,
   };
   return JSON.stringify(data, null, 2);
 }
@@ -155,21 +144,24 @@ export async function importAllData(jsonString: string): Promise<{ success: bool
   try {
     const data = JSON.parse(jsonString);
     
-    await db.transaction('rw', [db.members, db.deaths, db.contributions, db.treasury, db.users], async () => {
-      await db.members.clear();
-      await db.deaths.clear();
-      await db.contributions.clear();
-      await db.treasury.clear();
-      
-      if (data.members?.length) await db.members.bulkAdd(data.members.map((m: any) => { delete m.id; return m; }));
-      if (data.deaths?.length) await db.deaths.bulkAdd(data.deaths.map((d: any) => { delete d.id; return d; }));
-      if (data.contributions?.length) await db.contributions.bulkAdd(data.contributions.map((c: any) => { delete c.id; return c; }));
-      if (data.treasury?.length) await db.treasury.bulkAdd(data.treasury.map((t: any) => { delete t.id; return t; }));
-      if (data.users?.length) {
-        await db.users.clear();
-        await db.users.bulkAdd(data.users.map((u: any) => { delete u.id; return u; }));
+    // Clear existing data
+    await supabase.from("contributions").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+    await supabase.from("deaths").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+    await supabase.from("members").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+    
+    // Insert new data
+    if (data.members?.length) await supabase.from("members").insert(data.members.map((m: any) => { delete m.id; return m; }));
+    if (data.deaths?.length) await supabase.from("deaths").insert(data.deaths.map((d: any) => { delete d.id; return d; }));
+    if (data.contributions?.length) await supabase.from("contributions").insert(data.contributions.map((c: any) => { delete c.id; return c; }));
+    
+    // Update treasury
+    if (data.treasury?.[0]) {
+      const { data: existing } = await supabase.from("treasury").select("id").limit(1).single();
+      if (existing) {
+        const { id: _id, ...rest } = data.treasury[0];
+        await supabase.from("treasury").update(rest).eq("id", existing.id);
       }
-    });
+    }
     
     return { success: true, message: `Import réussi : ${data.members?.length || 0} membres, ${data.deaths?.length || 0} décès, ${data.contributions?.length || 0} cotisations` };
   } catch (err: any) {

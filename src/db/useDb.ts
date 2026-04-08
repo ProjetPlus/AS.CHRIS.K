@@ -1,117 +1,263 @@
-import { useLiveQuery } from 'dexie-react-hooks';
-import { db, type DbMember, type DbDeath, type DbContribution, type DbUser } from './database';
+import { useState, useEffect, useCallback } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import type { DbMember, DbDeath, DbContribution, DbTreasury, DbUser, DbSettings } from "./database";
 
-export function useMembers() {
-  const members = useLiveQuery(() => db.members.toArray()) ?? [];
-  return {
-    members,
-    addMember: (member: Omit<DbMember, 'id'>) => db.members.add(member),
-    updateMember: (id: number, changes: Partial<DbMember>) => db.members.update(id, changes),
-    deleteMember: (id: number) => db.members.delete(id),
-    getMemberByMemberId: (memberId: string) => db.members.where('memberId').equals(memberId).first(),
-  };
+// Generic hook for realtime subscribed tables
+function useSupabaseTable<T extends { id: string }>(table: string) {
+  const [data, setData] = useState<T[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchData = useCallback(async () => {
+    const { data: rows } = await supabase.from(table).select("*").order("created_at", { ascending: false });
+    setData((rows || []) as T[]);
+    setLoading(false);
+  }, [table]);
+
+  useEffect(() => {
+    fetchData();
+    const channel = supabase
+      .channel(`${table}_changes`)
+      .on("postgres_changes", { event: "*", schema: "public", table }, () => {
+        fetchData();
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [table, fetchData]);
+
+  return { data, loading, refetch: fetchData };
 }
 
-export function useMember(id: number | undefined) {
-  return useLiveQuery(() => id ? db.members.get(id) : undefined, [id]);
+export function useMembers() {
+  const { data: members, refetch } = useSupabaseTable<DbMember>("members");
+
+  const addMember = async (member: Omit<DbMember, "id" | "created_at" | "updated_at">) => {
+    const { error } = await supabase.from("members").insert(member as any);
+    if (error) throw error;
+    await refetch();
+  };
+
+  const updateMember = async (id: string, changes: Partial<DbMember>) => {
+    await supabase.from("members").update(changes as any).eq("id", id);
+    await refetch();
+  };
+
+  const deleteMember = async (id: string) => {
+    await supabase.from("members").delete().eq("id", id);
+    await refetch();
+  };
+
+  return { members, addMember, updateMember, deleteMember };
+}
+
+export function useMember(id: string | undefined) {
+  const [member, setMember] = useState<DbMember | undefined>(undefined);
+
+  useEffect(() => {
+    if (!id) return;
+    supabase.from("members").select("*").eq("id", id).single().then(({ data }) => {
+      if (data) setMember(data as DbMember);
+    });
+  }, [id]);
+
+  return member;
 }
 
 export function useDeaths() {
-  const deaths = useLiveQuery(() => db.deaths.toArray()) ?? [];
-  return {
-    deaths,
-    addDeath: async (death: Omit<DbDeath, 'id'>) => {
-      const deathId = await db.deaths.add(death);
-      // Auto-generate contribution entries for all active members
-      const activeMembers = await db.members.where('status').equals('actif').toArray();
-      const contributions: Omit<DbContribution, 'id'>[] = activeMembers.map(m => ({
-        memberId: m.memberId,
-        memberName: `${m.firstName} ${m.lastName}`,
-        deathId: deathId as number,
+  const { data: deaths, refetch } = useSupabaseTable<DbDeath>("deaths");
+
+  const addDeath = async (death: Omit<DbDeath, "id" | "created_at">) => {
+    const { data: inserted, error } = await supabase.from("deaths").insert(death as any).select().single();
+    if (error) throw error;
+    
+    // Auto-generate contribution entries for all active members
+    const { data: activeMembers } = await supabase.from("members").select("*").eq("status", "actif");
+    if (activeMembers && inserted) {
+      const contributions = activeMembers.map((m: any) => ({
+        member_id: m.member_id,
+        member_name: `${m.first_name} ${m.last_name}`,
+        death_id: inserted.id,
         amount: 0,
-        expectedAmount: m.totalCoveredPersons * 1000,
-        paymentMethod: "especes" as const,
-        status: "non_payé" as const,
+        expected_amount: m.total_covered_persons * 1000,
+        payment_method: "especes",
+        status: "non_payé",
       }));
-      await db.contributions.bulkAdd(contributions);
+      await supabase.from("contributions").insert(contributions);
+      
       // Update death totals
-      const totalExpected = contributions.reduce((s, c) => s + c.expectedAmount, 0);
-      await db.deaths.update(deathId, { totalExpectedContributions: totalExpected });
-      return deathId;
-    },
-    updateDeath: (id: number, changes: Partial<DbDeath>) => db.deaths.update(id, changes),
+      const totalExpected = contributions.reduce((s: number, c: any) => s + c.expected_amount, 0);
+      await supabase.from("deaths").update({ total_expected_contributions: totalExpected }).eq("id", inserted.id);
+    }
+    
+    await refetch();
+    return inserted?.id;
   };
+
+  const updateDeath = async (id: string, changes: Partial<DbDeath>) => {
+    await supabase.from("deaths").update(changes as any).eq("id", id);
+    await refetch();
+  };
+
+  return { deaths, addDeath, updateDeath };
 }
 
-export function useContributions(deathId?: number) {
-  const contributions = useLiveQuery(
-    () => deathId ? db.contributions.where('deathId').equals(deathId).toArray() : db.contributions.toArray(),
-    [deathId]
-  ) ?? [];
+export function useContributions(deathId?: string) {
+  const [contributions, setContributions] = useState<DbContribution[]>([]);
 
-  return {
-    contributions,
-    addContribution: (c: Omit<DbContribution, 'id'>) => db.contributions.add(c),
-    updateContribution: async (id: number, changes: Partial<DbContribution>) => {
-      await db.contributions.update(id, changes);
-      // Recalculate death totals
-      const contribution = await db.contributions.get(id);
-      if (contribution) {
-        const allForDeath = await db.contributions.where('deathId').equals(contribution.deathId).toArray();
-        const totalCollected = allForDeath.reduce((s, c) => s + c.amount, 0);
-        await db.deaths.update(contribution.deathId, { totalCollected });
-        // Update treasury
-        await recalcTreasury();
+  const fetchContributions = useCallback(async () => {
+    let query = supabase.from("contributions").select("*");
+    if (deathId) query = query.eq("death_id", deathId);
+    const { data } = await query.order("member_name");
+    setContributions((data || []) as DbContribution[]);
+  }, [deathId]);
+
+  useEffect(() => {
+    fetchContributions();
+    const channel = supabase
+      .channel(`contributions_${deathId || "all"}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "contributions" }, () => {
+        fetchContributions();
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [deathId, fetchContributions]);
+
+  const updateContribution = async (id: string, changes: Partial<DbContribution>) => {
+    await supabase.from("contributions").update(changes as any).eq("id", id);
+    
+    // Recalculate death totals
+    const contrib = contributions.find(c => c.id === id);
+    if (contrib) {
+      const { data: allForDeath } = await supabase.from("contributions").select("*").eq("death_id", contrib.death_id);
+      if (allForDeath) {
+        const totalCollected = allForDeath.reduce((s, c: any) => s + c.amount, 0);
+        await supabase.from("deaths").update({ total_collected: totalCollected }).eq("id", contrib.death_id);
       }
-    },
+      await recalcTreasury();
+    }
+    
+    await fetchContributions();
   };
+
+  return { contributions, updateContribution };
 }
 
 export function useAllContributions() {
-  return useLiveQuery(() => db.contributions.toArray()) ?? [];
+  const { data } = useSupabaseTable<DbContribution>("contributions");
+  return data;
 }
 
 export function useTreasury() {
-  return useLiveQuery(() => db.treasury.toCollection().first());
+  const [treasury, setTreasury] = useState<DbTreasury | undefined>(undefined);
+
+  useEffect(() => {
+    const fetch = async () => {
+      const { data } = await supabase.from("treasury").select("*").limit(1).single();
+      if (data) setTreasury(data as DbTreasury);
+    };
+    fetch();
+    const channel = supabase
+      .channel("treasury_changes")
+      .on("postgres_changes", { event: "*", schema: "public", table: "treasury" }, () => fetch())
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, []);
+
+  return treasury;
 }
 
 async function recalcTreasury() {
-  const allContributions = await db.contributions.toArray();
-  const allDeaths = await db.deaths.toArray();
-  const totalCollected = allContributions.filter(c => c.status === 'payé' || c.status === 'partiel').reduce((s, c) => s + c.amount, 0);
-  const totalPayouts = allDeaths.filter(d => d.status === 'clôturé' || d.status === 'en_cours').reduce((s, d) => s + d.payout, 0);
-  const retainedReserves = allDeaths.reduce((s, d) => s + d.retained, 0);
-  const pending = allContributions.filter(c => c.status === 'non_payé' || c.status === 'partiel').reduce((s, c) => s + (c.expectedAmount - c.amount), 0);
-  const treasury = await db.treasury.toCollection().first();
-  if (treasury?.id) {
-    await db.treasury.update(treasury.id, {
-      totalContributionsCollected: totalCollected,
-      totalPayouts,
-      retainedReserves,
-      totalBalance: totalCollected - totalPayouts + retainedReserves,
-      pendingContributions: pending,
-    });
-  }
+  const { data: allContributions } = await supabase.from("contributions").select("*");
+  const { data: allDeaths } = await supabase.from("deaths").select("*");
+  const { data: treasuryRow } = await supabase.from("treasury").select("id").limit(1).single();
+  
+  if (!treasuryRow) return;
+  
+  const contributions = allContributions || [];
+  const deaths = allDeaths || [];
+  
+  const totalCollected = contributions.filter((c: any) => c.status === "payé" || c.status === "partiel").reduce((s: number, c: any) => s + c.amount, 0);
+  const totalPayouts = deaths.filter((d: any) => d.status === "clôturé" || d.status === "en_cours").reduce((s: number, d: any) => s + d.payout, 0);
+  const retainedReserves = deaths.reduce((s: number, d: any) => s + d.retained, 0);
+  const pending = contributions.filter((c: any) => c.status === "non_payé" || c.status === "partiel").reduce((s: number, c: any) => s + (c.expected_amount - c.amount), 0);
+  
+  await supabase.from("treasury").update({
+    total_contributions_collected: totalCollected,
+    total_payouts: totalPayouts,
+    retained_reserves: retainedReserves,
+    total_balance: totalCollected - totalPayouts + retainedReserves,
+    pending_contributions: pending,
+  }).eq("id", treasuryRow.id);
 }
 
 export function useContributionsForMember(memberId: string) {
-  return useLiveQuery(() => db.contributions.where('memberId').equals(memberId).toArray(), [memberId]) ?? [];
+  const [contributions, setContributions] = useState<DbContribution[]>([]);
+  
+  useEffect(() => {
+    if (!memberId) return;
+    supabase.from("contributions").select("*").eq("member_id", memberId).then(({ data }) => {
+      setContributions((data || []) as DbContribution[]);
+    });
+  }, [memberId]);
+
+  return contributions;
 }
 
 export function useUsers() {
-  const users = useLiveQuery(() => db.users.toArray()) ?? [];
-  return {
-    users,
-    addUser: (user: Omit<DbUser, 'id'>) => db.users.add(user),
-    updateUser: (id: number, changes: Partial<DbUser>) => db.users.update(id, changes),
-    deleteUser: (id: number) => db.users.delete(id),
+  const { data: users, refetch } = useSupabaseTable<DbUser>("app_users");
+
+  const addUser = async (user: { username: string; password: string; role: string; display_name: string }) => {
+    // Use edge function or RPC to hash password
+    const { error } = await supabase.rpc("create_app_user", {
+      p_username: user.username,
+      p_password: user.password,
+      p_role: user.role,
+      p_display_name: user.display_name,
+    });
+    if (error) throw error;
+    await refetch();
   };
+
+  const updateUser = async (id: string, changes: Partial<DbUser>) => {
+    await supabase.from("app_users").update(changes as any).eq("id", id);
+    await refetch();
+  };
+
+  const deleteUser = async (id: string) => {
+    await supabase.from("app_users").delete().eq("id", id);
+    await refetch();
+  };
+
+  return { users, addUser, updateUser, deleteUser };
 }
 
 export async function authenticateUser(username: string, password: string): Promise<DbUser | null> {
-  const user = await db.users.where('username').equals(username).first();
-  if (user && user.password === password && user.isActive) {
-    return user;
-  }
-  return null;
+  const { data, error } = await supabase.rpc("authenticate_app_user", {
+    p_username: username,
+    p_password: password,
+  });
+  
+  if (error || !data || (Array.isArray(data) && data.length === 0)) return null;
+  
+  const user = Array.isArray(data) ? data[0] : data;
+  return user as DbUser;
+}
+
+export function useSettings() {
+  const [settings, setSettings] = useState<DbSettings | undefined>(undefined);
+
+  useEffect(() => {
+    const fetch = async () => {
+      const { data } = await supabase.from("settings").select("*").limit(1).single();
+      if (data) setSettings(data as DbSettings);
+    };
+    fetch();
+  }, []);
+
+  const updateSettings = async (changes: Partial<DbSettings>) => {
+    if (!settings) return;
+    const { data } = await supabase.from("settings").update(changes as any).eq("id", settings.id).select().single();
+    if (data) setSettings(data as DbSettings);
+  };
+
+  return { settings, updateSettings };
 }
