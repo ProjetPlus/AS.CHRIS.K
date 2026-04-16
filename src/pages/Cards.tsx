@@ -3,16 +3,18 @@ import { CreditCard, Download, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { useMembers } from "@/db/useDb";
+import { useMembers, useSettings } from "@/db/useDb";
 import { toast } from "sonner";
-import type { DbMember } from "@/db/database";
+import type { DbMember, DbSettings } from "@/db/database";
 import QRCode from "qrcode";
 import jsPDF from "jspdf";
 
 const CARD_W = 85.6;
 const CARD_H = 54;
 
-async function generateCardPDF(member: DbMember) {
+async function generateCardPDF(member: DbMember, settings?: DbSettings) {
+  const assocName = (settings?.association_name || "Association des Chrétiens de Kouassikankro").toUpperCase();
+  const assocShort = settings?.initials ? `AS.${settings.initials}.K` : "AS.CHRIS.K";
   const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: [CARD_W, CARD_H] });
 
   doc.setFillColor(107, 26, 46);
@@ -25,11 +27,11 @@ async function generateCardPDF(member: DbMember) {
   doc.setFontSize(7);
   doc.setFont("helvetica", "bold");
   doc.text("MUTUELLE FUNÉRAIRE", CARD_W / 2, 5, { align: "center" });
-  doc.setFontSize(5.5);
-  doc.text("CAMP BÉTHEL DE KOUASSIKANDRO", CARD_W / 2, 9, { align: "center" });
+  doc.setFontSize(5);
+  doc.text(assocName.length > 50 ? assocName.slice(0, 50) : assocName, CARD_W / 2, 9, { align: "center" });
   doc.setFontSize(3.5);
   doc.setFont("helvetica", "normal");
-  doc.text("Région du Haut-Sassandra — Côte d'Ivoire", CARD_W / 2, 12.5, { align: "center" });
+  doc.text("République de Côte d'Ivoire — Union, Discipline, Travail", CARD_W / 2, 12.5, { align: "center" });
 
   doc.setFillColor(250, 247, 244);
   doc.roundedRect(5, 18, 18, 22, 2, 2, "F");
@@ -77,8 +79,8 @@ async function generateCardPDF(member: DbMember) {
   doc.setTextColor(100, 100, 100);
   doc.setFontSize(4);
   doc.setFont("helvetica", "normal");
-  doc.text("Cette carte est la propriété de la Mutuelle Funéraire", CARD_W / 2, 38, { align: "center" });
-  doc.text("du Camp Béthel de Kouassikandro.", CARD_W / 2, 41, { align: "center" });
+  doc.text(`Cette carte est la propriété de ${assocShort}.`, CARD_W / 2, 38, { align: "center" });
+  doc.text("Association des Chrétiens de Kouassikankro.", CARD_W / 2, 41, { align: "center" });
   doc.text("En cas de perte, veuillez la retourner à l'association.", CARD_W / 2, 44, { align: "center" });
 
   doc.setFillColor(201, 168, 76);
@@ -86,13 +88,14 @@ async function generateCardPDF(member: DbMember) {
   doc.setTextColor(107, 26, 46);
   doc.setFontSize(3.5);
   doc.setFont("helvetica", "bold");
-  doc.text("www.campbethel.ci", CARD_W / 2, CARD_H - 1.5, { align: "center" });
+  doc.text(assocShort, CARD_W / 2, CARD_H - 1.5, { align: "center" });
 
   return doc;
 }
 
 const Cards = () => {
   const { members } = useMembers();
+  const { settings } = useSettings();
   const [previewMember, setPreviewMember] = useState<DbMember | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string>("");
   const [generating, setGenerating] = useState<string | null>(null);
@@ -101,7 +104,7 @@ const Cards = () => {
 
   const handlePreview = async (member: DbMember) => {
     setPreviewMember(member);
-    const doc = await generateCardPDF(member);
+    const doc = await generateCardPDF(member, settings);
     const blob = doc.output("blob");
     setPreviewUrl(URL.createObjectURL(blob));
   };
@@ -109,7 +112,7 @@ const Cards = () => {
   const handleDownload = async (member: DbMember) => {
     setGenerating(member.id);
     try {
-      const doc = await generateCardPDF(member);
+      const doc = await generateCardPDF(member, settings);
       doc.save(`Carte_${member.member_id}.pdf`);
       toast.success("Carte générée", { description: `${member.last_name} ${member.first_name}` });
     } catch {

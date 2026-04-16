@@ -246,6 +246,11 @@ export function useSettings() {
       if (data) setSettings(data as unknown as DbSettings);
     };
     fetch();
+    const channel = supabase
+      .channel("settings_changes")
+      .on("postgres_changes", { event: "*", schema: "public", table: "settings" }, () => fetch())
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
   }, []);
 
   const updateSettings = async (changes: Partial<DbSettings>) => {
