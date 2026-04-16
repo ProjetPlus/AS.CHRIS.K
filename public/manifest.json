@@ -1,7 +1,7 @@
 {
-  "name": "Mutuelle Funéraire — Camp Béthel",
-  "short_name": "Camp Béthel",
-  "description": "Application de gestion de la mutuelle funéraire du Camp Béthel de Kouassikandro",
+  "name": "AS.CHRIS.K — Association des Chrétiens de Kouassikankro",
+  "short_name": "AS.CHRIS.K",
+  "description": "Application de gestion de la mutuelle funéraire de l'Association des Chrétiens de Kouassikankro",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#FAF7F4",
@@ -9,15 +9,15 @@
   "orientation": "portrait-primary",
   "icons": [
     {
-      "src": "/placeholder.svg",
+      "src": "/icon-192.png",
       "sizes": "192x192",
-      "type": "image/svg+xml",
+      "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "/placeholder.svg",
+      "src": "/icon-512.png",
       "sizes": "512x512",
-      "type": "image/svg+xml",
+      "type": "image/png",
       "purpose": "any maskable"
     }
   ]
