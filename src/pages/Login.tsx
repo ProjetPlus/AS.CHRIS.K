@@ -7,16 +7,21 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { useAuth } from "@/contexts/AuthContext";
 import { authenticateUser } from "@/db/useDb";
+import { useSettings } from "@/db/useDb";
 import logo from "@/assets/logo-camp-bethel.png";
 
 const Login = () => {
   const navigate = useNavigate();
   const { login } = useAuth();
+  const { settings } = useSettings();
   const [showPassword, setShowPassword] = useState(false);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  const associationName = settings?.association_name || "Association des Chrétiens de Kouassikankro (AS.CHRIS.K)";
+  const associationPhone = settings?.phone || "";
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -37,9 +42,9 @@ const Login = () => {
     <div className="min-h-screen bg-creme flex items-center justify-center p-4">
       <div className="w-full max-w-sm flex flex-col items-center gap-6">
         <div className="flex flex-col items-center gap-3">
-          <img src={logo} alt="Camp Béthel" className="w-24 h-24 rounded-full shadow-lg border-4 border-or/30" />
-          <h1 className="text-xl font-display font-bold text-bordeaux-dark text-center leading-tight">
-            CAMP BÉTHEL DE KOUASSIKANDRO
+          <img src={logo} alt={associationName} className="w-24 h-24 rounded-full shadow-lg border-4 border-or/30 object-contain bg-white" />
+          <h1 className="text-xl font-display font-bold text-bordeaux-dark text-center leading-tight uppercase">
+            {associationName}
           </h1>
           <p className="text-sm text-muted-foreground text-center">
             Gestion de la mutuelle funéraire
