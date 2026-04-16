@@ -93,10 +93,10 @@ export interface DbSettings {
   secondary_retained: number;
 }
 
-// Generate next member ID: MSCB-YY-NNN (uses settings initials)
+// Generate next member ID: <INITIALS>-YY-NNN (uses settings initials, defaults to A)
 export async function generateMemberId(): Promise<string> {
   const { data: settings } = await supabase.from("settings").select("initials").limit(1).single();
-  const initials = settings?.initials || "MSCB";
+  const initials = settings?.initials || "A";
   const year = new Date().getFullYear().toString().slice(-2);
   const prefix = `${initials}-${year}-`;
   
