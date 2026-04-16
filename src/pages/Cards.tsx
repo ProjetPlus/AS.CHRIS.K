@@ -27,11 +27,11 @@ async function generateCardPDF(member: DbMember, settings?: DbSettings) {
   doc.setFontSize(7);
   doc.setFont("helvetica", "bold");
   doc.text("MUTUELLE FUNÉRAIRE", CARD_W / 2, 5, { align: "center" });
-  doc.setFontSize(5.5);
-  doc.text("CAMP BÉTHEL DE KOUASSIKANDRO", CARD_W / 2, 9, { align: "center" });
+  doc.setFontSize(5);
+  doc.text(assocName.length > 50 ? assocName.slice(0, 50) : assocName, CARD_W / 2, 9, { align: "center" });
   doc.setFontSize(3.5);
   doc.setFont("helvetica", "normal");
-  doc.text("Région du Haut-Sassandra — Côte d'Ivoire", CARD_W / 2, 12.5, { align: "center" });
+  doc.text("République de Côte d'Ivoire — Union, Discipline, Travail", CARD_W / 2, 12.5, { align: "center" });
 
   doc.setFillColor(250, 247, 244);
   doc.roundedRect(5, 18, 18, 22, 2, 2, "F");
@@ -79,8 +79,8 @@ async function generateCardPDF(member: DbMember, settings?: DbSettings) {
   doc.setTextColor(100, 100, 100);
   doc.setFontSize(4);
   doc.setFont("helvetica", "normal");
-  doc.text("Cette carte est la propriété de la Mutuelle Funéraire", CARD_W / 2, 38, { align: "center" });
-  doc.text("du Camp Béthel de Kouassikandro.", CARD_W / 2, 41, { align: "center" });
+  doc.text(`Cette carte est la propriété de ${assocShort}.`, CARD_W / 2, 38, { align: "center" });
+  doc.text("Association des Chrétiens de Kouassikankro.", CARD_W / 2, 41, { align: "center" });
   doc.text("En cas de perte, veuillez la retourner à l'association.", CARD_W / 2, 44, { align: "center" });
 
   doc.setFillColor(201, 168, 76);
@@ -88,7 +88,7 @@ async function generateCardPDF(member: DbMember, settings?: DbSettings) {
   doc.setTextColor(107, 26, 46);
   doc.setFontSize(3.5);
   doc.setFont("helvetica", "bold");
-  doc.text("www.campbethel.ci", CARD_W / 2, CARD_H - 1.5, { align: "center" });
+  doc.text(assocShort, CARD_W / 2, CARD_H - 1.5, { align: "center" });
 
   return doc;
 }
