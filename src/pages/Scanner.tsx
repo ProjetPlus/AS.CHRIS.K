@@ -1,34 +1,94 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Html5Qrcode } from "html5-qrcode";
-import { Camera, StopCircle, AlertCircle } from "lucide-react";
+import jsQR from "jsqr";
+import { Camera, StopCircle, AlertCircle, Keyboard, Search } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 const Scanner = () => {
   const navigate = useNavigate();
-  const html5QrCodeRef = useRef<Html5Qrcode | null>(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const rafRef = useRef<number | null>(null);
+  const lookupLockRef = useRef(false);
+
   const [scanning, setScanning] = useState(false);
   const [error, setError] = useState("");
   const [lastResult, setLastResult] = useState("");
+  const [manualMode, setManualMode] = useState(false);
+  const [manualCode, setManualCode] = useState("");
+  const [searching, setSearching] = useState(false);
 
-  const stopScanner = async () => {
-    if (html5QrCodeRef.current) {
-      try {
-        if (html5QrCodeRef.current.isScanning) {
-          await html5QrCodeRef.current.stop();
-        }
-        html5QrCodeRef.current.clear();
-      } catch {
-        /* ignore */
-      }
-      html5QrCodeRef.current = null;
+  const stopScanner = () => {
+    if (rafRef.current) {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+    }
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((t) => t.stop());
+      streamRef.current = null;
+    }
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
     }
     setScanning(false);
   };
 
+  const lookupMember = async (code: string) => {
+    if (lookupLockRef.current) return;
+    lookupLockRef.current = true;
+    setSearching(true);
+    try {
+      const { data: member } = await supabase
+        .from("members")
+        .select("*")
+        .eq("member_id", code.trim())
+        .maybeSingle();
+
+      if (member) {
+        toast.success(`Membre trouvé : ${member.last_name} ${member.first_name}`);
+        stopScanner();
+        navigate(`/members/${member.id}`);
+      } else {
+        toast.error("Membre non trouvé", { description: code });
+        setTimeout(() => { lookupLockRef.current = false; }, 1500);
+      }
+    } catch (err: any) {
+      toast.error("Erreur de recherche", { description: err.message });
+      lookupLockRef.current = false;
+    }
+    setSearching(false);
+  };
+
+  const tick = () => {
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    if (!video || !canvas || video.readyState !== video.HAVE_ENOUGH_DATA) {
+      rafRef.current = requestAnimationFrame(tick);
+      return;
+    }
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext("2d", { willReadFrequently: true });
+    if (!ctx) return;
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const code = jsQR(imageData.data, imageData.width, imageData.height, {
+      inversionAttempts: "dontInvert",
+    });
+    if (code && code.data) {
+      setLastResult(code.data);
+      lookupMember(code.data);
+    }
+    rafRef.current = requestAnimationFrame(tick);
+  };
+
+  // IMPORTANT : appelé directement dans le onClick (geste utilisateur)
   const startScanner = async () => {
     setError("");
 
@@ -36,19 +96,40 @@ const Scanner = () => {
       setError("Votre navigateur ne supporte pas l'accès à la caméra.");
       return;
     }
-
     if (!window.isSecureContext) {
-      setError("La caméra nécessite HTTPS. Ouvrez l'application en HTTPS.");
+      setError("La caméra nécessite HTTPS. Ouvrez l'application en HTTPS ou via localhost.");
       return;
     }
 
-    // Demander la permission caméra DANS le geste utilisateur (avant tout await long)
-    let stream: MediaStream | null = null;
     try {
-      stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { ideal: "environment" } },
+      // Demander la caméra DIRECTEMENT dans le geste
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: { ideal: "environment" },
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+        },
         audio: false,
       });
+      streamRef.current = stream;
+      setScanning(true);
+
+      // Attacher au video element (créé par le rendu conditionnel)
+      await new Promise((r) => setTimeout(r, 50));
+      const video = videoRef.current;
+      if (!video) {
+        stopScanner();
+        setError("Élément vidéo introuvable.");
+        return;
+      }
+      video.setAttribute("playsinline", "true");
+      video.setAttribute("muted", "true");
+      video.muted = true;
+      video.srcObject = stream;
+      await video.play();
+
+      lookupLockRef.current = false;
+      rafRef.current = requestAnimationFrame(tick);
     } catch (err: any) {
       const name = err?.name || "";
       if (name === "NotAllowedError" || name === "PermissionDeniedError") {
@@ -57,50 +138,37 @@ const Scanner = () => {
         setError("Aucune caméra détectée sur cet appareil.");
       } else if (name === "NotReadableError" || name === "TrackStartError") {
         setError("La caméra est utilisée par une autre application.");
+      } else if (name === "OverconstrainedError") {
+        // Retry sans contrainte facingMode
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+          streamRef.current = stream;
+          setScanning(true);
+          await new Promise((r) => setTimeout(r, 50));
+          const video = videoRef.current;
+          if (video) {
+            video.setAttribute("playsinline", "true");
+            video.muted = true;
+            video.srcObject = stream;
+            await video.play();
+            lookupLockRef.current = false;
+            rafRef.current = requestAnimationFrame(tick);
+          }
+        } catch (e: any) {
+          setError(e?.message || "Impossible d'accéder à la caméra.");
+        }
       } else {
         setError(err?.message || "Impossible d'accéder à la caméra.");
       }
+    }
+  };
+
+  const handleManualSubmit = async () => {
+    if (!manualCode.trim()) {
+      toast.error("Veuillez saisir un code");
       return;
     }
-
-    // Libérer le flux test : html5-qrcode va le rouvrir lui-même
-    stream.getTracks().forEach((t) => t.stop());
-
-    setScanning(true);
-    // Laisser le DOM monter le conteneur #qr-reader
-    await new Promise((r) => setTimeout(r, 50));
-
-    try {
-      const scanner = new Html5Qrcode("qr-reader");
-      html5QrCodeRef.current = scanner;
-
-      await scanner.start(
-        { facingMode: "environment" },
-        { fps: 10, qrbox: { width: 250, height: 250 } },
-        async (decodedText: string) => {
-          setLastResult(decodedText);
-          const { data: member } = await supabase
-            .from("members")
-            .select("*")
-            .eq("member_id", decodedText)
-            .maybeSingle();
-
-          if (member) {
-            toast.success(`Membre trouvé : ${member.last_name} ${member.first_name}`);
-            await stopScanner();
-            navigate(`/members/${member.id}`);
-          } else {
-            toast.error("Membre non trouvé", { description: decodedText });
-          }
-        },
-        () => {
-          /* scan errors silencieux */
-        }
-      );
-    } catch (err: any) {
-      setError(err?.message || "Échec de l'initialisation du scanner.");
-      await stopScanner();
-    }
+    await lookupMember(manualCode);
   };
 
   useEffect(() => {
@@ -114,49 +182,107 @@ const Scanner = () => {
     <div className="space-y-6 max-w-lg mx-auto">
       <div className="text-center">
         <h1 className="text-2xl font-display font-bold text-bordeaux-dark">Scanner QR Code</h1>
-        <p className="text-sm text-muted-foreground mt-1">Scannez la carte d'un membre pour l'identifier</p>
+        <p className="text-sm text-muted-foreground mt-1">Scannez la carte d'un membre ou saisissez le code</p>
       </div>
 
-      <Card className="border-border/50 overflow-hidden">
-        <CardContent className="p-0">
-          <div className="aspect-square bg-foreground/5 flex flex-col items-center justify-center gap-4 relative">
-            <div id="qr-reader" className="w-full h-full" style={{ display: scanning ? "block" : "none" }} />
-            {!scanning && (
-              <>
-                <div className="w-48 h-48 border-2 border-accent rounded-2xl relative">
-                  <div className="absolute -top-0.5 -left-0.5 w-6 h-6 border-t-4 border-l-4 border-accent rounded-tl-lg" />
-                  <div className="absolute -top-0.5 -right-0.5 w-6 h-6 border-t-4 border-r-4 border-accent rounded-tr-lg" />
-                  <div className="absolute -bottom-0.5 -left-0.5 w-6 h-6 border-b-4 border-l-4 border-accent rounded-bl-lg" />
-                  <div className="absolute -bottom-0.5 -right-0.5 w-6 h-6 border-b-4 border-r-4 border-accent rounded-br-lg" />
-                </div>
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <Camera className="h-5 w-5" />
-                  <span className="text-sm">Positionnez le QR code dans le cadre</span>
-                </div>
-              </>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+      {!manualMode && (
+        <>
+          <Card className="border-border/50 overflow-hidden">
+            <CardContent className="p-0">
+              <div className="aspect-square bg-foreground/5 flex flex-col items-center justify-center gap-4 relative">
+                {scanning ? (
+                  <>
+                    <video
+                      ref={videoRef}
+                      className="absolute inset-0 w-full h-full object-cover"
+                      playsInline
+                      muted
+                    />
+                    <canvas ref={canvasRef} className="hidden" />
+                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                      <div className="w-56 h-56 border-2 border-accent rounded-2xl shadow-[0_0_0_9999px_rgba(0,0,0,0.45)]" />
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="w-48 h-48 border-2 border-accent rounded-2xl relative">
+                      <div className="absolute -top-0.5 -left-0.5 w-6 h-6 border-t-4 border-l-4 border-accent rounded-tl-lg" />
+                      <div className="absolute -top-0.5 -right-0.5 w-6 h-6 border-t-4 border-r-4 border-accent rounded-tr-lg" />
+                      <div className="absolute -bottom-0.5 -left-0.5 w-6 h-6 border-b-4 border-l-4 border-accent rounded-bl-lg" />
+                      <div className="absolute -bottom-0.5 -right-0.5 w-6 h-6 border-b-4 border-r-4 border-accent rounded-br-lg" />
+                    </div>
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <Camera className="h-5 w-5" />
+                      <span className="text-sm">Positionnez le QR code dans le cadre</span>
+                    </div>
+                  </>
+                )}
+              </div>
+            </CardContent>
+          </Card>
 
-      {error && (
-        <div className="p-3 bg-destructive-light rounded-lg border border-destructive/20 flex items-start gap-2">
-          <AlertCircle className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
-          <p className="text-xs text-destructive">{error}</p>
-        </div>
+          {error && (
+            <div className="p-3 bg-destructive/10 rounded-lg border border-destructive/20 flex items-start gap-2">
+              <AlertCircle className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
+              <p className="text-xs text-destructive">{error}</p>
+            </div>
+          )}
+
+          <div className="flex flex-col sm:flex-row justify-center gap-3">
+            {!scanning ? (
+              <Button
+                className="bg-accent hover:bg-accent/90 text-accent-foreground"
+                onClick={startScanner}
+              >
+                <Camera className="h-4 w-4 mr-2" /> Activer la caméra
+              </Button>
+            ) : (
+              <Button variant="outline" onClick={stopScanner}>
+                <StopCircle className="h-4 w-4 mr-2" /> Arrêter le scanner
+              </Button>
+            )}
+            <Button variant="outline" onClick={() => { stopScanner(); setManualMode(true); setError(""); }}>
+              <Keyboard className="h-4 w-4 mr-2" /> Saisir manuellement
+            </Button>
+          </div>
+        </>
       )}
 
-      <div className="flex justify-center gap-3">
-        {!scanning ? (
-          <Button className="bg-accent hover:bg-accent/90 text-accent-foreground" onClick={startScanner}>
-            <Camera className="h-4 w-4 mr-2" /> Activer la caméra
-          </Button>
-        ) : (
-          <Button variant="outline" onClick={stopScanner}>
-            <StopCircle className="h-4 w-4 mr-2" /> Arrêter le scanner
-          </Button>
-        )}
-      </div>
+      {manualMode && (
+        <Card className="border-border/50">
+          <CardContent className="p-6 space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="manual-code" className="text-sm font-semibold">
+                Saisir manuellement le code
+              </Label>
+              <Input
+                id="manual-code"
+                value={manualCode}
+                onChange={(e) => setManualCode(e.target.value.toUpperCase())}
+                placeholder="Ex: A-26-001"
+                className="h-11 text-center font-mono text-lg tracking-wider"
+                autoFocus
+                onKeyDown={(e) => { if (e.key === "Enter") handleManualSubmit(); }}
+              />
+              <p className="text-xs text-muted-foreground">
+                Format : Initiales-AA-NNN (ex: A-26-001)
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <Button
+                className="flex-1 bg-accent hover:bg-accent/90 text-accent-foreground"
+                onClick={handleManualSubmit}
+                disabled={searching}
+              >
+                <Search className="h-4 w-4 mr-2" /> {searching ? "Recherche..." : "Rechercher"}
+              </Button>
+              <Button variant="outline" onClick={() => { setManualMode(false); setManualCode(""); }}>
+                <Camera className="h-4 w-4 mr-2" /> Scanner
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {lastResult && (
         <div className="p-3 bg-secondary/50 rounded-lg text-center">
