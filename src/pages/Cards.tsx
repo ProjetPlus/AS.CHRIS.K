@@ -3,16 +3,18 @@ import { CreditCard, Download, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { useMembers } from "@/db/useDb";
+import { useMembers, useSettings } from "@/db/useDb";
 import { toast } from "sonner";
-import type { DbMember } from "@/db/database";
+import type { DbMember, DbSettings } from "@/db/database";
 import QRCode from "qrcode";
 import jsPDF from "jspdf";
 
 const CARD_W = 85.6;
 const CARD_H = 54;
 
-async function generateCardPDF(member: DbMember) {
+async function generateCardPDF(member: DbMember, settings?: DbSettings) {
+  const assocName = (settings?.association_name || "Association des Chrétiens de Kouassikankro").toUpperCase();
+  const assocShort = settings?.initials ? `AS.${settings.initials}.K` : "AS.CHRIS.K";
   const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: [CARD_W, CARD_H] });
 
   doc.setFillColor(107, 26, 46);
