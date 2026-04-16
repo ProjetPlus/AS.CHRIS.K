@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ScanLine, Camera, StopCircle, AlertCircle } from "lucide-react";
+import { Html5Qrcode } from "html5-qrcode";
+import { Camera, StopCircle, AlertCircle } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
@@ -8,15 +9,68 @@ import { toast } from "sonner";
 
 const Scanner = () => {
   const navigate = useNavigate();
-  const html5QrCodeRef = useRef<any>(null);
+  const html5QrCodeRef = useRef<Html5Qrcode | null>(null);
   const [scanning, setScanning] = useState(false);
   const [error, setError] = useState("");
   const [lastResult, setLastResult] = useState("");
 
+  const stopScanner = async () => {
+    if (html5QrCodeRef.current) {
+      try {
+        if (html5QrCodeRef.current.isScanning) {
+          await html5QrCodeRef.current.stop();
+        }
+        html5QrCodeRef.current.clear();
+      } catch {
+        /* ignore */
+      }
+      html5QrCodeRef.current = null;
+    }
+    setScanning(false);
+  };
+
   const startScanner = async () => {
     setError("");
+
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setError("Votre navigateur ne supporte pas l'accès à la caméra.");
+      return;
+    }
+
+    if (!window.isSecureContext) {
+      setError("La caméra nécessite HTTPS. Ouvrez l'application en HTTPS.");
+      return;
+    }
+
+    // Demander la permission caméra DANS le geste utilisateur (avant tout await long)
+    let stream: MediaStream | null = null;
     try {
-      const { Html5Qrcode } = await import("html5-qrcode");
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: "environment" } },
+        audio: false,
+      });
+    } catch (err: any) {
+      const name = err?.name || "";
+      if (name === "NotAllowedError" || name === "PermissionDeniedError") {
+        setError("Permission refusée. Autorisez la caméra dans les paramètres du navigateur.");
+      } else if (name === "NotFoundError" || name === "DevicesNotFoundError") {
+        setError("Aucune caméra détectée sur cet appareil.");
+      } else if (name === "NotReadableError" || name === "TrackStartError") {
+        setError("La caméra est utilisée par une autre application.");
+      } else {
+        setError(err?.message || "Impossible d'accéder à la caméra.");
+      }
+      return;
+    }
+
+    // Libérer le flux test : html5-qrcode va le rouvrir lui-même
+    stream.getTracks().forEach((t) => t.stop());
+
+    setScanning(true);
+    // Laisser le DOM monter le conteneur #qr-reader
+    await new Promise((r) => setTimeout(r, 50));
+
+    try {
       const scanner = new Html5Qrcode("qr-reader");
       html5QrCodeRef.current = scanner;
 
@@ -29,8 +83,8 @@ const Scanner = () => {
             .from("members")
             .select("*")
             .eq("member_id", decodedText)
-            .single();
-          
+            .maybeSingle();
+
           if (member) {
             toast.success(`Membre trouvé : ${member.last_name} ${member.first_name}`);
             await stopScanner();
@@ -39,29 +93,21 @@ const Scanner = () => {
             toast.error("Membre non trouvé", { description: decodedText });
           }
         },
-        () => {}
+        () => {
+          /* scan errors silencieux */
+        }
       );
-      setScanning(true);
     } catch (err: any) {
-      setError(err?.message || "Impossible d'accéder à la caméra");
+      setError(err?.message || "Échec de l'initialisation du scanner.");
+      await stopScanner();
     }
-  };
-
-  const stopScanner = async () => {
-    if (html5QrCodeRef.current) {
-      try {
-        await html5QrCodeRef.current.stop();
-        html5QrCodeRef.current.clear();
-      } catch {}
-      html5QrCodeRef.current = null;
-    }
-    setScanning(false);
   };
 
   useEffect(() => {
     return () => {
       stopScanner();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
@@ -94,8 +140,8 @@ const Scanner = () => {
       </Card>
 
       {error && (
-        <div className="p-3 bg-destructive-light rounded-lg border border-destructive/20 flex items-center gap-2">
-          <AlertCircle className="h-4 w-4 text-destructive shrink-0" />
+        <div className="p-3 bg-destructive-light rounded-lg border border-destructive/20 flex items-start gap-2">
+          <AlertCircle className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
           <p className="text-xs text-destructive">{error}</p>
         </div>
       )}
