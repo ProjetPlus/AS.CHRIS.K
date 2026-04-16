@@ -1,35 +1,21 @@
-Camp Béthel Mutuelle Funéraire — design system, architecture decisions, and constraints
+# Memory: index.md
 
-## Design System
-- Palette: Bordeaux (#6B1A2E) & Or (#C9A84C) — see index.css for full HSL tokens
-- Fonts: Playfair Display (H1, amounts), DM Sans (body), Cormorant Garamond (card names)
-- Background: Crème #FAF7F4, Text: Noir doux #1A1A1A
+# Project Memory
 
-## Architecture
-- Frontend-first with local IndexedDB database (Dexie.js)
-- NO Supabase, NO Lovable Cloud — everything runs locally
-- Data persisted in browser IndexedDB (campbethel database)
-- Admin account: admin / 12345678 (seeded on first run)
-- Export/import JSON for data backup between devices
-- PWA manifest for installability (no service worker in dev)
-- 16 screens total per cahier des charges
+## Core
+Local-first PWA synced with Supabase (permissive RLS, offline support).
+Login uses custom RPC with username (no email). Admin: admin / 12345678.
+Theme: Bordeaux #6B1A2E, Gold #C9A84C, Cream #FAF7F4. Playfair Display (headings), DM Sans (body).
+Mobile payments via Wave, Orange, MTN, Moov. 10k FCFA join fee.
+Association officielle: AS.CHRIS.K (Association des Chrétiens de Kouassikankro). Initiales ID: A. Format: A-YY-NNN.
+Logo: arbre de mains colorées (src/assets/logo-camp-bethel.png) — utilisé partout (login, sidebar, favicon, PWA).
+Scanner QR: implémentation native video + jsQR (pas html5-qrcode), avec fallback saisie manuelle.
 
-## Key Business Rules
-- Member ID format: MSCB-YY-NNN (auto-generated, resets each year)
-- Adhesion fee: 10,000 FCFA (one-time, required to finalize registration)
-- Contribution per death: 1,000 FCFA × covered persons
-- Max 2 secondary members per principal
-- 6 user roles (Super Admin, Admin, Read-only, Cotisations, Membres, Imprimeur)
-- Death payout: 300,000 FCFA (principal), 250,000 FCFA (secondaire, 50k retained)
-
-## Libraries
-- Dexie.js + dexie-react-hooks: IndexedDB database
-- html5-qrcode: QR code scanner
-- jsPDF: PDF generation (cards, reports)
-- qrcode: QR code generation for member cards
-- CR80 card format: 85.6mm × 54mm
-
-## Auth
-- Local auth via IndexedDB users table
-- Session stored in sessionStorage
-- Protected routes via AuthProvider/ProtectedRoute
+## Memories
+- [Authentication & Roles](mem://auth/credentials) — Login via username (no email) using custom RPC, 6 user roles
+- [Design System](mem://style/design-system) — Bordeaux/Gold/Cream palette, specific fonts for layout and cards
+- [Membership Rules & Cards](mem://features/membership-rules) — ID format A-YY-NNN, max 2 dependents, 10k FCFA fee, CR80 card specs with QR
+- [Death Compensations & Contributions](mem://features/financials-deaths) — Compensation amounts, 1000 FCFA auto-contribution, payment proofs
+- [Dashboard Analytics](mem://features/dashboard-analytics) — Recharts metrics for member status, collections, and financial history
+- [Navigation Layout](mem://navigation/layout) — QR scanner as main CTA, specific sidebar exclusions
+- [Dynamic Settings](mem://features/settings) — Association config and financial variables stored in 'settings' table
