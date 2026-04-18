@@ -172,19 +172,6 @@ const Reports = () => {
       if (idx > 0) doc.addPage("a5", "portrait");
       renderCover(m, idx + 1);
       doc.addPage("a5", "portrait");
-
-      // ==== Page intérieure : tableau cotisations ====
-      doc.setDrawColor(46, 125, 50);
-      doc.setLineWidth(0.6);
-      doc.roundedRect(margin / 2 + 2, margin / 2 + 2, W - margin - 4, H - margin - 4, 4, 4);
-      doc.setLineWidth(0.2);
-      doc.roundedRect(margin / 2 + 3, margin / 2 + 3, W - margin - 6, H - margin - 6, 3.5, 3.5);
-
-      doc.setTextColor(46, 125, 50);
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(11);
-      doc.text(assocShort, W / 2, 16, { align: "center" });
-      doc.setFontSize(7);
     };
 
     activeMembers.forEach((m, idx) => {
