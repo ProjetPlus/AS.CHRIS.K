@@ -209,21 +209,24 @@ const Reports = () => {
         <h1 className="text-2xl md:text-3xl font-display font-bold text-bordeaux-dark">Rapports & Exports</h1>
         <p className="text-sm text-muted-foreground mt-1">Génération de rapports PDF</p>
       </div>
-      {reports.map((r, i) => (
-        <Card key={i} className="border-border/50">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-semibold flex items-center gap-2">
-              <BarChart3 className="h-4 w-4 text-accent" /> {r.title}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="flex items-center justify-between">
-            <p className="text-xs text-muted-foreground">{r.desc}</p>
-            <Button size="sm" variant="outline" className="text-xs h-8" onClick={r.action}>
-              <FileDown className="h-3 w-3 mr-1" /> PDF
-            </Button>
-          </CardContent>
-        </Card>
-      ))}
+      {reports.map((r, i) => {
+        const Icon = r.icon;
+        return (
+          <Card key={i} className="border-border/50">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                <Icon className="h-4 w-4 text-accent" /> {r.title}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="flex items-center justify-between">
+              <p className="text-xs text-muted-foreground">{r.desc}</p>
+              <Button size="sm" variant="outline" className="text-xs h-8" onClick={r.action}>
+                <FileDown className="h-3 w-3 mr-1" /> PDF
+              </Button>
+            </CardContent>
+          </Card>
+        );
+      })}
     </div>
   );
 };
