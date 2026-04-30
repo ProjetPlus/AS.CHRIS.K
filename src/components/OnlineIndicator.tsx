@@ -1,10 +1,18 @@
-import { Wifi, WifiOff, RefreshCw, CloudUpload } from "lucide-react";
+import { Wifi, WifiOff, RefreshCw, CloudUpload, Radio } from "lucide-react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useOnlineStatus } from "@/lib/online";
+import { getRealtimeStatus } from "@/lib/realtime";
 import { toast } from "sonner";
 
 export function OnlineIndicator() {
   const { online, queueCount, syncing, syncNow } = useOnlineStatus();
+  const [rt, setRt] = useState(getRealtimeStatus());
+
+  useEffect(() => {
+    const id = setInterval(() => setRt(getRealtimeStatus()), 2000);
+    return () => clearInterval(id);
+  }, []);
 
   const handleSync = async () => {
     const n = await syncNow();
