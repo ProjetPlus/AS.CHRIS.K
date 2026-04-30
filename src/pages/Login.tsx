@@ -58,6 +58,14 @@ const Login = () => {
           </p>
         </div>
 
+        {!online && (
+          <div className="w-full flex items-center gap-2 p-3 rounded-lg bg-destructive/10 border border-destructive/30">
+            <WifiOff className="h-4 w-4 text-destructive shrink-0" />
+            <p className="text-xs text-destructive">
+              Mode hors ligne — connectez-vous avec un identifiant déjà utilisé sur cet appareil.
+            </p>
+          </div>
+        )}
         <Button
           className="w-full h-14 text-base font-semibold bg-accent hover:bg-accent/90 text-accent-foreground shadow-md"
           onClick={() => navigate("/scanner")}
