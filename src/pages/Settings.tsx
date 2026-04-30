@@ -5,6 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useSettings } from "@/db/useDb";
+import { RealtimeDiagnostics } from "@/components/RealtimeDiagnostics";
 import { toast } from "sonner";
 
 function FieldRow({ label, value, onChange, type = "text" }: { label: string; value: string; onChange: (v: string) => void; type?: string }) {
@@ -92,6 +93,8 @@ const SettingsPage = () => {
           <Save className="h-4 w-4 mr-2" /> {saving ? "Enregistrement..." : "Enregistrer"}
         </Button>
       </div>
+
+      <RealtimeDiagnostics />
     </div>
   );
 };
