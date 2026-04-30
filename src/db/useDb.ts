@@ -159,13 +159,8 @@ export function useContributions(deathId?: string) {
 
   useEffect(() => {
     fetchContributions();
-    const channel = supabase
-      .channel(`contributions_${deathId || "all"}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "contributions" }, () => {
-        fetchContributions();
-      })
-      .subscribe();
-    return () => { supabase.removeChannel(channel); };
+    const unsub = subscribeTable("contributions", fetchContributions);
+    return unsub;
   }, [deathId, fetchContributions]);
 
   const updateContribution = async (id: string, changes: Partial<DbContribution>) => {
@@ -201,20 +196,19 @@ export function useTreasury() {
   const [treasury, setTreasury] = useState<DbTreasury | undefined>(() => getCacheSingle<DbTreasury>("treasury"));
 
   useEffect(() => {
-    const fetch = async () => {
+    const fetchT = async () => {
       if (!isOnline()) return;
-      const { data } = await supabase.from("treasury").select("*").limit(1).single();
-      if (data) {
-        setTreasury(data as unknown as DbTreasury);
-        setCacheSingle("treasury", data);
-      }
+      try {
+        const { data } = await supabase.from("treasury").select("*").limit(1).single();
+        if (data) {
+          setTreasury(data as unknown as DbTreasury);
+          setCacheSingle("treasury", data);
+        }
+      } catch (e) { console.warn("[treasury] fetch failed", e); }
     };
-    fetch();
-    const channel = supabase
-      .channel(`treasury_changes_${crypto.randomUUID()}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "treasury" }, () => fetch())
-      .subscribe();
-    return () => { supabase.removeChannel(channel); };
+    fetchT();
+    const unsub = subscribeTable("treasury", fetchT);
+    return unsub;
   }, []);
 
   return treasury;
