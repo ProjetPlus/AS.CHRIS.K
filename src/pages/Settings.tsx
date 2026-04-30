@@ -55,7 +55,7 @@ const SettingsPage = () => {
     setSaving(false);
   };
 
-  if (!settings) return null;
+  // Allow rendering offline even without settings (show diagnostic)
 
   return (
     <div className="space-y-6 max-w-2xl">
