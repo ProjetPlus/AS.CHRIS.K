@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { DbMember, DbDeath, DbContribution, DbTreasury, DbUser, DbSettings } from "./database";
 import { getCache, setCache, getCacheSingle, setCacheSingle, enqueue, isOnline, authenticateOffline, cacheUserCredentials } from "@/lib/offline";
+import { subscribeTable } from "@/lib/realtime";
 
 function useSupabaseTable<T>(table: string) {
   const [data, setData] = useState<T[]>(() => getCache<T>(table));
@@ -15,20 +16,15 @@ function useSupabaseTable<T>(table: string) {
       setData(list);
       setCache(table, list);
     } catch (e) {
-      console.warn("[offline] fetch failed for", table);
+      console.warn("[offline] fetch failed for", table, e);
     }
     setLoading(false);
   }, [table]);
 
   useEffect(() => {
     fetchData();
-    const channel = supabase
-      .channel(`${table}_changes_${crypto.randomUUID()}`)
-      .on("postgres_changes", { event: "*", schema: "public", table }, () => {
-        fetchData();
-      })
-      .subscribe();
-    return () => { supabase.removeChannel(channel); };
+    const unsub = subscribeTable(table, fetchData);
+    return unsub;
   }, [table, fetchData]);
 
   return { data, loading, refetch: fetchData };
