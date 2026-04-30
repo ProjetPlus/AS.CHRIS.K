@@ -27,15 +27,20 @@ const Login = () => {
     e.preventDefault();
     setError("");
     setLoading(true);
-    
-    const user = await authenticateUser(username, password);
-    if (user) {
-      login(user);
-      navigate("/dashboard");
-    } else {
-      setError("Identifiant ou mot de passe incorrect");
+    try {
+      const user = await authenticateUser(username.trim(), password);
+      if (user) {
+        login(user);
+        navigate("/dashboard");
+      } else {
+        setError("Identifiant ou mot de passe incorrect (vérifiez la connexion ou utilisez vos identifiants déjà enregistrés sur cet appareil)");
+      }
+    } catch (err: any) {
+      console.warn("[login] failed", err);
+      setError("Erreur de connexion. Réessayez.");
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   return (
