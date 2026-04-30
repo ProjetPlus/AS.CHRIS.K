@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { DbMember, DbDeath, DbContribution, DbTreasury, DbUser, DbSettings } from "./database";
 import { getCache, setCache, getCacheSingle, setCacheSingle, enqueue, isOnline, authenticateOffline, cacheUserCredentials } from "@/lib/offline";
+import { subscribeTable } from "@/lib/realtime";
 
 function useSupabaseTable<T>(table: string) {
   const [data, setData] = useState<T[]>(() => getCache<T>(table));
@@ -15,20 +16,15 @@ function useSupabaseTable<T>(table: string) {
       setData(list);
       setCache(table, list);
     } catch (e) {
-      console.warn("[offline] fetch failed for", table);
+      console.warn("[offline] fetch failed for", table, e);
     }
     setLoading(false);
   }, [table]);
 
   useEffect(() => {
     fetchData();
-    const channel = supabase
-      .channel(`${table}_changes_${crypto.randomUUID()}`)
-      .on("postgres_changes", { event: "*", schema: "public", table }, () => {
-        fetchData();
-      })
-      .subscribe();
-    return () => { supabase.removeChannel(channel); };
+    const unsub = subscribeTable(table, fetchData);
+    return unsub;
   }, [table, fetchData]);
 
   return { data, loading, refetch: fetchData };
@@ -163,13 +159,8 @@ export function useContributions(deathId?: string) {
 
   useEffect(() => {
     fetchContributions();
-    const channel = supabase
-      .channel(`contributions_${deathId || "all"}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "contributions" }, () => {
-        fetchContributions();
-      })
-      .subscribe();
-    return () => { supabase.removeChannel(channel); };
+    const unsub = subscribeTable("contributions", fetchContributions);
+    return unsub;
   }, [deathId, fetchContributions]);
 
   const updateContribution = async (id: string, changes: Partial<DbContribution>) => {
@@ -205,20 +196,19 @@ export function useTreasury() {
   const [treasury, setTreasury] = useState<DbTreasury | undefined>(() => getCacheSingle<DbTreasury>("treasury"));
 
   useEffect(() => {
-    const fetch = async () => {
+    const fetchT = async () => {
       if (!isOnline()) return;
-      const { data } = await supabase.from("treasury").select("*").limit(1).single();
-      if (data) {
-        setTreasury(data as unknown as DbTreasury);
-        setCacheSingle("treasury", data);
-      }
+      try {
+        const { data } = await supabase.from("treasury").select("*").limit(1).single();
+        if (data) {
+          setTreasury(data as unknown as DbTreasury);
+          setCacheSingle("treasury", data);
+        }
+      } catch (e) { console.warn("[treasury] fetch failed", e); }
     };
-    fetch();
-    const channel = supabase
-      .channel(`treasury_changes_${crypto.randomUUID()}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "treasury" }, () => fetch())
-      .subscribe();
-    return () => { supabase.removeChannel(channel); };
+    fetchT();
+    const unsub = subscribeTable("treasury", fetchT);
+    return unsub;
   }, []);
 
   return treasury;
@@ -321,20 +311,19 @@ export function useSettings() {
   const [settings, setSettings] = useState<DbSettings | undefined>(() => getCacheSingle<DbSettings>("settings"));
 
   useEffect(() => {
-    const fetch = async () => {
+    const fetchS = async () => {
       if (!isOnline()) return;
-      const { data } = await supabase.from("settings").select("*").limit(1).single();
-      if (data) {
-        setSettings(data as unknown as DbSettings);
-        setCacheSingle("settings", data);
-      }
+      try {
+        const { data } = await supabase.from("settings").select("*").limit(1).single();
+        if (data) {
+          setSettings(data as unknown as DbSettings);
+          setCacheSingle("settings", data);
+        }
+      } catch (e) { console.warn("[settings] fetch failed", e); }
     };
-    fetch();
-    const channel = supabase
-      .channel(`settings_changes_${crypto.randomUUID()}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "settings" }, () => fetch())
-      .subscribe();
-    return () => { supabase.removeChannel(channel); };
+    fetchS();
+    const unsub = subscribeTable("settings", fetchS);
+    return unsub;
   }, []);
 
   const updateSettings = async (changes: Partial<DbSettings>) => {

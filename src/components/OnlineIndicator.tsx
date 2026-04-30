@@ -1,10 +1,18 @@
-import { Wifi, WifiOff, RefreshCw, CloudUpload } from "lucide-react";
+import { Wifi, WifiOff, RefreshCw, CloudUpload, Radio } from "lucide-react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useOnlineStatus } from "@/lib/online";
+import { getRealtimeStatus } from "@/lib/realtime";
 import { toast } from "sonner";
 
 export function OnlineIndicator() {
   const { online, queueCount, syncing, syncNow } = useOnlineStatus();
+  const [rt, setRt] = useState(getRealtimeStatus());
+
+  useEffect(() => {
+    const id = setInterval(() => setRt(getRealtimeStatus()), 2000);
+    return () => clearInterval(id);
+  }, []);
 
   const handleSync = async () => {
     const n = await syncNow();
@@ -21,6 +29,15 @@ export function OnlineIndicator() {
       ) : (
         <span className="flex items-center gap-1 px-2 py-1 rounded-full bg-destructive/10 text-destructive text-[10px] font-semibold uppercase tracking-wider border border-destructive/20 animate-pulse">
           <WifiOff className="h-3 w-3" /> Hors ligne
+        </span>
+      )}
+      {online && rt.total > 0 && (
+        <span
+          className="hidden sm:flex items-center gap-1 px-2 py-1 rounded-full bg-primary/10 text-primary text-[10px] font-semibold border border-primary/20"
+          title={`Realtime: ${rt.connected}/${rt.total} canaux connectés`}
+        >
+          <Radio className={`h-3 w-3 ${rt.connected === rt.total ? "" : "animate-pulse"}`} />
+          {rt.connected}/{rt.total}
         </span>
       )}
       {queueCount > 0 && (
