@@ -189,9 +189,9 @@ const RegisterStep1 = () => {
             <Field label="Prénom(s) *" value={formData.firstName} onChange={(v) => setForm({ firstName: v })} placeholder="Prénom(s)" />
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Field label="Contact principal *" value={formData.phone} onChange={(v) => handlePhone("phone", v)} placeholder="+225 XX XX XX XX XX" />
-            <Field label="Contact secondaire" value={formData.phoneSecondary} onChange={(v) => handlePhone("phoneSecondary", v)} placeholder="Optionnel" />
-            <Field label="WhatsApp" value={formData.whatsapp} onChange={(v) => handlePhone("whatsapp", v)} placeholder="Optionnel" />
+            <PhoneField label="Contact principal *" value={formData.phone} onChange={(v) => handlePhone("phone", v)} onKeyDown={(e) => handlePhoneKeyDown(e, formData.phone)} />
+            <PhoneField label="Contact secondaire" value={formData.phoneSecondary} onChange={(v) => handlePhone("phoneSecondary", v)} onKeyDown={(e) => handlePhoneKeyDown(e, formData.phoneSecondary)} />
+            <PhoneField label="WhatsApp" value={formData.whatsapp} onChange={(v) => handlePhone("whatsapp", v)} onKeyDown={(e) => handlePhoneKeyDown(e, formData.whatsapp)} />
           </div>
           <Field label="Campement *" value={formData.campement} onChange={(v) => setForm({ campement: v })} placeholder="Lieu de résidence" />
 
