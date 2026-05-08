@@ -25,8 +25,9 @@ try {
   if (root) root.innerHTML = '<div style="padding:24px;font-family:sans-serif">Erreur de démarrage. Rechargez la page.</div>';
 }
 
-// Seed default admin so login works in airplane mode on first run
-Promise.resolve().then(() => seedDefaultAdmin()).catch((e) => console.warn("[boot] seed failed", e));
+// Best-effort cleanup of any previously hardcoded default admin credential
+// (the seed has been removed for security; this only purges legacy cache).
+Promise.resolve().then(() => seedDefaultAdmin()).catch(() => {});
 
 // Register Service Worker only outside Lovable preview/iframe contexts
 const isInIframe = (() => {
