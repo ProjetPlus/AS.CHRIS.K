@@ -292,16 +292,9 @@ export type Database = {
           display_name: string
           id: string
           is_active: boolean
-          password_hash: string
           role: string
           username: string
         }[]
-        SetofOptions: {
-          from: "*"
-          to: "app_users"
-          isOneToOne: false
-          isSetofReturn: true
-        }
       }
       create_app_user: {
         Args: {

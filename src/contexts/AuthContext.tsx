@@ -33,8 +33,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = (u: DbUser) => {
-    setUser(u);
-    const json = JSON.stringify(u);
+    // Defensive: never persist password_hash or other sensitive fields client-side.
+    const { password_hash: _ph, password: _pw, ...safe } = (u as any) ?? {};
+    const safeUser = safe as DbUser;
+    setUser(safeUser);
+    const json = JSON.stringify(safeUser);
     sessionStorage.setItem(STORAGE_KEY, json);
     localStorage.setItem(STORAGE_KEY, json); // persist for offline PWA
   };
