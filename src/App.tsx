@@ -46,27 +46,22 @@ const Sync = lazy(importSync);
 const NotFound = lazy(importNotFound);
 
 /**
- * Smart prefetch: after first paint, idly fetch the most-used routes so
- * navigation feels instant on 2G. Skips when the user is on a slow/save-data
- * connection or offline to avoid wasting their data plan.
+ * Smart prefetch: after first paint, cache route chunks while online so the PWA
+ * can reopen after an offline refresh. On 2G/save-data we only delay more.
  */
 function schedulePrefetch() {
   if (typeof window === "undefined") return;
   const conn: any = (navigator as any).connection;
-  if (conn?.saveData) return;
-  if (conn?.effectiveType && /^(slow-2g|2g)$/.test(conn.effectiveType)) return;
   if (!navigator.onLine) return;
+  const slow = conn?.saveData || (conn?.effectiveType && /^(slow-2g|2g)$/.test(conn.effectiveType));
   const idle = (cb: () => void) =>
-    (window as any).requestIdleCallback ? (window as any).requestIdleCallback(cb, { timeout: 3000 }) : setTimeout(cb, 1500);
+    (window as any).requestIdleCallback ? (window as any).requestIdleCallback(cb, { timeout: slow ? 12000 : 3000 }) : setTimeout(cb, slow ? 8000 : 1500);
   idle(() => {
-    // Most-used screens first
-    importDashboard();
-    importMembers();
-    importScanner();
+    importDashboard(); importMembers(); importScanner();
     idle(() => {
-      importRegisterStep1();
-      importContributions();
-      importDeaths();
+      importRegisterStep1(); importRegisterStep2(); importMemberProfile();
+      importContributions(); importDeaths(); importTreasury();
+      importReports(); importCards(); importSettings(); importSync(); importAccess(); importNotFound();
     });
   });
 }

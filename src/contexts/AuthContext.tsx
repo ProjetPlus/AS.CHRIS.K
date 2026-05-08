@@ -18,11 +18,19 @@ const AuthContext = createContext<AuthContextType>({
 
 const STORAGE_KEY = "campbethel_user";
 
-export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<DbUser | null>(() => {
+function readStoredUser(): DbUser | null {
+  try {
     const stored = sessionStorage.getItem(STORAGE_KEY) || localStorage.getItem(STORAGE_KEY);
     return stored ? JSON.parse(stored) : null;
-  });
+  } catch {
+    sessionStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(STORAGE_KEY);
+    return null;
+  }
+}
+
+export function AuthProvider({ children }: { children: ReactNode }) {
+  const [user, setUser] = useState<DbUser | null>(() => readStoredUser());
 
   // Restore session from localStorage on mount (survives PWA restart / offline)
   useEffect(() => {

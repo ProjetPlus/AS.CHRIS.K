@@ -54,6 +54,7 @@ export type Database = {
           id: string
           member_id: string
           member_name: string
+          member_uuid: string | null
           payment_method: string
           proof_data: string | null
           proof_type: string | null
@@ -68,6 +69,7 @@ export type Database = {
           id?: string
           member_id: string
           member_name: string
+          member_uuid?: string | null
           payment_method?: string
           proof_data?: string | null
           proof_type?: string | null
@@ -82,6 +84,7 @@ export type Database = {
           id?: string
           member_id?: string
           member_name?: string
+          member_uuid?: string | null
           payment_method?: string
           proof_data?: string | null
           proof_type?: string | null
@@ -95,6 +98,13 @@ export type Database = {
             referencedRelation: "deaths"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "contributions_member_uuid_fkey"
+            columns: ["member_uuid"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
         ]
       }
       deaths: {
@@ -102,6 +112,7 @@ export type Database = {
           created_at: string
           date_of_death: string
           deceased_member_id: string
+          deceased_member_uuid: string | null
           deceased_name: string
           id: string
           payout: number
@@ -115,6 +126,7 @@ export type Database = {
           created_at?: string
           date_of_death: string
           deceased_member_id: string
+          deceased_member_uuid?: string | null
           deceased_name: string
           id?: string
           payout?: number
@@ -128,6 +140,7 @@ export type Database = {
           created_at?: string
           date_of_death?: string
           deceased_member_id?: string
+          deceased_member_uuid?: string | null
           deceased_name?: string
           id?: string
           payout?: number
@@ -137,7 +150,15 @@ export type Database = {
           total_expected_contributions?: number
           type?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "deaths_deceased_member_uuid_fkey"
+            columns: ["deceased_member_uuid"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       members: {
         Row: {

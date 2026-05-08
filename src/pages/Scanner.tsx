@@ -16,6 +16,7 @@ const Scanner = () => {
   const streamRef = useRef<MediaStream | null>(null);
   const rafRef = useRef<number | null>(null);
   const lookupLockRef = useRef(false);
+  const autoStartedRef = useRef(false);
 
   const [scanning, setScanning] = useState(false);
   const [error, setError] = useState("");
@@ -183,6 +184,10 @@ const Scanner = () => {
   };
 
   useEffect(() => {
+    if (!autoStartedRef.current) {
+      autoStartedRef.current = true;
+      startScanner();
+    }
     return () => {
       stopScanner();
     };

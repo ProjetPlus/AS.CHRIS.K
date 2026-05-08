@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { useMember, useContributionsForMember, useMembers } from "@/db/useDb";
 import { toast } from "sonner";
 import type { DbSecondaryMember } from "@/db/database";
+import { MemberPhoto } from "@/components/MemberPhoto";
 
 const MemberProfile = () => {
   const { id } = useParams();
@@ -83,13 +84,7 @@ const MemberProfile = () => {
       </button>
 
       <div className="flex items-start gap-4">
-        {member.photo ? (
-          <img src={member.photo} alt="" className="w-16 h-16 rounded-full object-cover shrink-0" />
-        ) : (
-          <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center text-primary text-xl font-display font-bold shrink-0">
-            {member.first_name[0]}{member.last_name[0]}
-          </div>
-        )}
+        <MemberPhoto member={member} className="w-16 h-16 text-xl font-display" />
         <div className="flex-1">
           <h1 className="text-2xl font-display font-bold text-bordeaux-dark">{member.last_name} {member.first_name}</h1>
           <div className="flex items-center gap-2 mt-1">

@@ -4,7 +4,7 @@
 //   which captures Vite's hashed JS/CSS chunks (/assets/*-[hash].js)
 //   on the first online visit. Subsequent offline loads serve them from cache.
 // - Navigation: network-first (3s timeout) then cached index for SPA routing.
-const CACHE = "aschrisk-v8";
+const CACHE = "aschrisk-v9";
 const PRECACHE = [
   "/",
   "/index.html",
@@ -48,26 +48,21 @@ self.addEventListener("fetch", (event) => {
   // Only handle same-origin
   if (url.origin !== self.location.origin) return;
 
-  // Navigation → if offline, serve cached shell immediately (no 3s wait).
-  // Otherwise network-first with timeout, fallback to cached index.
+  // Navigation → network-first with a short timeout, then cached shell.
   if (req.mode === "navigate") {
     const cachedShell = () =>
       caches.match("/index.html").then((r) => r || caches.match("/") || caches.match(req));
-    if (!self.navigator.onLine) {
-      event.respondWith(cachedShell().then((r) => r || fetch(req).catch(() => new Response(
-        "<!doctype html><meta charset=utf-8><title>Hors ligne</title><body style='font-family:sans-serif;padding:24px'>Application hors ligne. Rouvrez quand vous serez en ligne pour finir l'installation.</body>",
-        { headers: { "Content-Type": "text/html; charset=utf-8" } }
-      ))));
-      return;
-    }
     event.respondWith(
-      timeout(3000, fetch(req))
+      timeout(1200, fetch(req))
         .then((res) => {
           const copy = res.clone();
           caches.open(CACHE).then((c) => c.put("/index.html", copy)).catch(() => {});
           return res;
         })
-        .catch(() => cachedShell())
+        .catch(() => cachedShell().then((r) => r || new Response(
+          "<!doctype html><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'><title>AS.CHRIS.K hors ligne</title><body style='font-family:sans-serif;padding:24px;background:#f7efe6;color:#2b1118'><h1>AS.CHRIS.K</h1><p>Application hors ligne. Le cœur de l’application n’est pas encore présent sur cet appareil.</p></body>",
+          { headers: { "Content-Type": "text/html; charset=utf-8" } }
+        )))
     );
     return;
   }

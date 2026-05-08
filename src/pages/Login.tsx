@@ -35,7 +35,7 @@ const Login = () => {
         login(user);
         navigate("/dashboard");
       } else if (!online) {
-        setError("Identifiants non reconnus hors ligne. Astuce : utilisez admin / 12345678 (toujours disponible) ou un compte avec lequel vous vous êtes déjà connecté sur cet appareil.");
+        setError("Identifiants non reconnus hors ligne. Reconnectez-vous avec un compte déjà utilisé sur cet appareil quand il était en ligne.");
       } else {
         setError("Identifiant ou mot de passe incorrect.");
       }
@@ -48,10 +48,10 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen bg-creme flex items-center justify-center p-4">
+    <div className="min-h-screen bg-background flex items-center justify-center p-4">
       <div className="w-full max-w-sm flex flex-col items-center gap-6">
         <div className="flex flex-col items-center gap-3">
-          <img src={logo} alt={associationName} className="w-24 h-24 rounded-full shadow-lg border-4 border-or/30 object-contain bg-white" />
+          <img src={logo} alt={associationName} className="w-24 h-24 rounded-full shadow-lg border-4 border-or/30 object-contain bg-transparent" />
           <h1 className="text-xl font-display font-bold text-bordeaux-dark text-center leading-tight uppercase">
             {associationName}
           </h1>
@@ -64,7 +64,7 @@ const Login = () => {
           <div className="w-full flex items-center gap-2 p-3 rounded-lg bg-destructive/10 border border-destructive/30">
             <WifiOff className="h-4 w-4 text-destructive shrink-0" />
             <p className="text-xs text-destructive">
-              Mode hors ligne — la connexion fonctionne avec tout compte déjà utilisé sur cet appareil. Compte admin local toujours disponible.
+              Mode hors ligne — la connexion fonctionne avec tout compte déjà utilisé sur cet appareil.
             </p>
           </div>
         )}
