@@ -74,7 +74,6 @@ export interface DbTreasury {
 export interface DbUser {
   id: string;
   username: string;
-  password_hash: string;
   role: "super_admin" | "admin" | "lecture_seule" | "cotisations" | "membres" | "imprimeur";
   display_name: string;
   is_active: boolean;
@@ -139,20 +138,83 @@ export async function exportAllData(): Promise<string> {
   return JSON.stringify(data, null, 2);
 }
 
-// Import data from JSON
+// Schema validators for safe import
+import { z } from "zod";
+
+const memberSchema = z.object({
+  member_id: z.string().trim().min(1).max(64),
+  first_name: z.string().trim().min(1).max(120),
+  last_name: z.string().trim().min(1).max(120),
+  phone: z.string().trim().max(40),
+  phone_secondary: z.string().trim().max(40).nullish(),
+  whatsapp: z.string().trim().max(40).nullish(),
+  campement: z.string().max(120).default(""),
+  sous_prefecture: z.string().max(120).default(""),
+  id_type: z.string().max(40).default(""),
+  id_number: z.string().max(80).nullish(),
+  photo: z.string().max(8_000_000).nullish(),
+  registration_date: z.string().max(40).optional(),
+  status: z.enum(["actif", "suspendu", "décédé"]).default("actif"),
+  adhesion_paid: z.boolean().default(false),
+  secondary_members: z.array(z.any()).default([]),
+  total_covered_persons: z.number().int().min(0).max(50).default(1),
+  contribution_status: z.enum(["à_jour", "en_retard"]).default("à_jour"),
+}).passthrough();
+
+const deathSchema = z.object({
+  deceased_name: z.string().trim().min(1).max(240),
+  deceased_member_id: z.string().trim().min(1).max(64),
+  date_of_death: z.string().max(40),
+  type: z.enum(["principal", "secondaire"]),
+  payout: z.number().int().min(0).max(1_000_000_000).default(0),
+  retained: z.number().int().min(0).max(1_000_000_000).default(0),
+  total_expected_contributions: z.number().int().min(0).default(0),
+  total_collected: z.number().int().min(0).default(0),
+  status: z.enum(["en_cours", "clôturé"]).default("en_cours"),
+}).passthrough();
+
+const contributionSchema = z.object({
+  member_id: z.string().trim().min(1).max(64),
+  member_name: z.string().trim().min(1).max(240),
+  death_id: z.string().uuid(),
+  amount: z.number().int().min(0).max(1_000_000_000).default(0),
+  expected_amount: z.number().int().min(0).max(1_000_000_000).default(0),
+  payment_method: z.enum(["especes", "wave", "orange", "mtn", "moov"]).default("especes"),
+  status: z.enum(["payé", "non_payé", "partiel", "exonéré"]).default("non_payé"),
+  date: z.string().max(40).nullish(),
+  proof_type: z.string().max(40).nullish(),
+  proof_data: z.string().max(8_000_000).nullish(),
+}).passthrough();
+
+const treasurySchema = z.object({
+  total_balance: z.number().int().default(0),
+  total_contributions_collected: z.number().int().min(0).default(0),
+  total_payouts: z.number().int().min(0).default(0),
+  retained_reserves: z.number().int().min(0).default(0),
+  pending_contributions: z.number().int().min(0).default(0),
+}).passthrough();
+
+function stripId<T extends Record<string, any>>(o: T) { const { id, ...rest } = o; return rest; }
+
 export async function importAllData(jsonString: string): Promise<{ success: boolean; message: string }> {
   try {
     const data = JSON.parse(jsonString);
-    
+
+    // Validate every record BEFORE touching the database
+    const validMembers = z.array(memberSchema).parse(data.members ?? []).map(stripId);
+    const validDeaths = z.array(deathSchema).parse(data.deaths ?? []).map(stripId);
+    const validContribs = z.array(contributionSchema).parse(data.contributions ?? []).map(stripId);
+    const validTreasury = data.treasury?.[0] ? treasurySchema.parse(data.treasury[0]) : null;
+
     // Clear existing data
     await supabase.from("contributions").delete().neq("id", "00000000-0000-0000-0000-000000000000");
     await supabase.from("deaths").delete().neq("id", "00000000-0000-0000-0000-000000000000");
     await supabase.from("members").delete().neq("id", "00000000-0000-0000-0000-000000000000");
-    
-    // Insert new data
-    if (data.members?.length) await supabase.from("members").insert(data.members.map((m: any) => { delete m.id; return m; }));
-    if (data.deaths?.length) await supabase.from("deaths").insert(data.deaths.map((d: any) => { delete d.id; return d; }));
-    if (data.contributions?.length) await supabase.from("contributions").insert(data.contributions.map((c: any) => { delete c.id; return c; }));
+
+    // Insert validated data
+    if (validMembers.length) await supabase.from("members").insert(validMembers as any);
+    if (validDeaths.length) await supabase.from("deaths").insert(validDeaths as any);
+    if (validContribs.length) await supabase.from("contributions").insert(validContribs as any);
     
     // Update treasury
     if (data.treasury?.[0]) {
