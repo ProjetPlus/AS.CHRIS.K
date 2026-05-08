@@ -223,10 +223,17 @@ async function sha256(text: string): Promise<string> {
 
 type CachedUser = { user: any; passHash: string };
 
+/** Strip any sensitive field (e.g. password_hash) before persisting a user object. */
+function sanitizeUser(u: any): any {
+  if (!u || typeof u !== "object") return u;
+  const { password_hash, password, ...safe } = u;
+  return safe;
+}
+
 export async function cacheUserCredentials(username: string, password: string, user: any) {
   const passHash = await sha256(password);
   const all = getUsersCache();
-  all[username.toLowerCase()] = { user, passHash };
+  all[username.toLowerCase()] = { user: sanitizeUser(user), passHash };
   localStorage.setItem(USERS_CACHE, JSON.stringify(all));
 }
 
@@ -244,30 +251,34 @@ export async function authenticateOffline(username: string, password: string): P
   const entry = all[username.toLowerCase()];
   if (!entry) return null;
   const passHash = await sha256(password);
-  return entry.passHash === passHash ? entry.user : null;
+  return entry.passHash === passHash ? sanitizeUser(entry.user) : null;
 }
 
 export function getOfflineSession(): any | null {
   try {
     const raw = sessionStorage.getItem(SESSION_KEY) || localStorage.getItem(SESSION_KEY);
-    return raw ? JSON.parse(raw) : null;
+    if (!raw) return null;
+    return sanitizeUser(JSON.parse(raw));
   } catch {
     return null;
   }
 }
 
-// Seed admin credentials so first-ever login works offline too
+/**
+ * No-op kept for backwards compatibility. The previous implementation hardcoded
+ * a default admin account ("admin"/"12345678") into every device's localStorage,
+ * which is a credential backdoor. Initial admin accounts must now be created
+ * server-side and cached only after a successful online login.
+ */
 export async function seedDefaultAdmin() {
-  const all = getUsersCache();
-  if (!all["admin"]) {
-    await cacheUserCredentials("admin", "12345678", {
-      id: "offline-admin",
-      username: "admin",
-      role: "super_admin",
-      display_name: "Administrateur",
-      is_active: true,
-      password_hash: "",
-      created_at: new Date().toISOString(),
-    });
-  }
+  // Best-effort cleanup of any previously seeded default credential.
+  try {
+    const all = getUsersCache();
+    const entry = all["admin"];
+    if (entry && entry.user?.id === "offline-admin") {
+      delete all["admin"];
+      localStorage.setItem(USERS_CACHE, JSON.stringify(all));
+    }
+  } catch {}
 }
+
