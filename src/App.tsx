@@ -1,6 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Route, Routes, Navigate } from "react-router-dom";
-import { lazy, Suspense } from "react";
+import { Component, lazy, Suspense, type ReactNode } from "react";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -69,10 +69,27 @@ if (typeof window !== "undefined") schedulePrefetch();
 
 const queryClient = new QueryClient();
 
-function ProtectedRoute({ children }: { children: React.ReactNode }) {
+function ProtectedRoute({ children }: { children: ReactNode }) {
   const { isAuthenticated } = useAuth();
   if (!isAuthenticated) return <Navigate to="/login" replace />;
   return <>{children}</>;
+}
+
+class ChunkErrorBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
+  state = { failed: false };
+  static getDerivedStateFromError() { return { failed: true }; }
+  render() {
+    if (!this.state.failed) return this.props.children;
+    return (
+      <div className="min-h-screen flex items-center justify-center p-6 text-center bg-background">
+        <div className="max-w-sm space-y-3">
+          <h1 className="text-xl font-display font-bold text-bordeaux-dark">Application hors ligne</h1>
+          <p className="text-sm text-muted-foreground">Cette page n’est pas encore disponible dans le cache local. Revenez à l’accueil ou rouvrez l’application.</p>
+          <button className="px-4 py-2 rounded-md bg-primary text-primary-foreground text-sm" onClick={() => { location.href = "/dashboard"; }}>Revenir au tableau de bord</button>
+        </div>
+      </div>
+    );
+  }
 }
 
 const RouteFallback = () => (
@@ -84,6 +101,7 @@ const RouteFallback = () => (
 const AppRoutes = () => {
   return (
     <BrowserRouter>
+      <ChunkErrorBoundary>
       <Suspense fallback={<RouteFallback />}>
         <Routes>
           <Route path="/" element={<Login />} />
@@ -107,6 +125,7 @@ const AppRoutes = () => {
           <Route path="*" element={<NotFound />} />
         </Routes>
       </Suspense>
+      </ChunkErrorBoundary>
     </BrowserRouter>
   );
 };
