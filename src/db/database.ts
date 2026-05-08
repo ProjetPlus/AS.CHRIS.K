@@ -217,15 +217,14 @@ export async function importAllData(jsonString: string): Promise<{ success: bool
     if (validContribs.length) await supabase.from("contributions").insert(validContribs as any);
     
     // Update treasury
-    if (data.treasury?.[0]) {
+    if (validTreasury) {
       const { data: existing } = await supabase.from("treasury").select("id").limit(1).single();
       if (existing) {
-        const { id: _id, ...rest } = data.treasury[0];
-        await supabase.from("treasury").update(rest).eq("id", existing.id);
+        await supabase.from("treasury").update(validTreasury as any).eq("id", existing.id);
       }
     }
-    
-    return { success: true, message: `Import réussi : ${data.members?.length || 0} membres, ${data.deaths?.length || 0} décès, ${data.contributions?.length || 0} cotisations` };
+
+    return { success: true, message: `Import réussi : ${validMembers.length} membres, ${validDeaths.length} décès, ${validContribs.length} cotisations` };
   } catch (err: any) {
     return { success: false, message: `Erreur d'import : ${err.message}` };
   }
