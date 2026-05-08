@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { DbMember, DbDeath, DbContribution, DbTreasury, DbUser, DbSettings } from "./database";
-import { getCache, setCache, getCacheSingle, setCacheSingle, enqueue, isOnline, authenticateOffline, cacheUserCredentials } from "@/lib/offline";
+import { getCache, setCache, getCacheSingle, setCacheSingle, enqueue, isOnline, authenticateOffline, cacheUserCredentials, CACHE_EVENT } from "@/lib/offline";
 import { subscribeTable } from "@/lib/realtime";
 
 function useSupabaseTable<T>(table: string) {
@@ -24,7 +24,11 @@ function useSupabaseTable<T>(table: string) {
   useEffect(() => {
     fetchData();
     const unsub = subscribeTable(table, fetchData);
-    return unsub;
+    const onCache = (event: Event) => {
+      if ((event as CustomEvent).detail?.table === table) setData(getCache<T>(table));
+    };
+    window.addEventListener(CACHE_EVENT, onCache);
+    return () => { unsub(); window.removeEventListener(CACHE_EVENT, onCache); };
   }, [table, fetchData]);
 
   return { data, loading, refetch: fetchData };
@@ -49,9 +53,10 @@ export function useMembers() {
   };
 
   const updateMember = async (id: string, changes: Partial<DbMember>) => {
+    const updatedMembers = members.map(m => m.id === id ? { ...m, ...changes, updated_at: new Date().toISOString() } : m);
+    setCache("members", updatedMembers);
     if (!isOnline()) {
       enqueue({ table: "members", op: "update", payload: changes, match: { column: "id", value: id } });
-      setCache("members", members.map(m => m.id === id ? { ...m, ...changes } : m));
       return;
     }
     const { error } = await supabase.from("members").update(changes as any).eq("id", id);
@@ -81,10 +86,21 @@ export function useMember(id: string | undefined) {
 
   useEffect(() => {
     if (!id) return;
-    if (!isOnline()) return;
+    const refreshFromCache = () => setMember(getCache<DbMember>("members").find(m => m.id === id));
+    refreshFromCache();
+    const onCache = (event: Event) => {
+      if ((event as CustomEvent).detail?.table === "members") refreshFromCache();
+    };
+    window.addEventListener(CACHE_EVENT, onCache);
+    if (!isOnline()) return () => window.removeEventListener(CACHE_EVENT, onCache);
     supabase.from("members").select("*").eq("id", id).single().then(({ data }) => {
-      if (data) setMember(data as unknown as DbMember);
+      if (data) {
+        setMember(data as unknown as DbMember);
+        const all = getCache<DbMember>("members");
+        setCache("members", all.map(m => m.id === id ? data as unknown as DbMember : m));
+      }
     });
+    return () => window.removeEventListener(CACHE_EVENT, onCache);
   }, [id]);
 
   return member;

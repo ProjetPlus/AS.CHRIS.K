@@ -8,9 +8,20 @@ import { toast } from "sonner";
 import type { DbMember, DbSettings } from "@/db/database";
 import QRCode from "qrcode";
 import jsPDF from "jspdf";
+import { MemberPhoto } from "@/components/MemberPhoto";
 
 const CARD_W = 85.6;
 const CARD_H = 54;
+
+async function imageForPdf(src: string): Promise<string> {
+  if (!src.startsWith("data:image/webp")) return src;
+  const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+    const i = new Image(); i.onload = () => resolve(i); i.onerror = reject; i.src = src;
+  });
+  const c = document.createElement("canvas"); c.width = img.naturalWidth; c.height = img.naturalHeight;
+  c.getContext("2d")?.drawImage(img, 0, 0);
+  return c.toDataURL("image/jpeg", 0.9);
+}
 
 async function generateCardPDF(member: DbMember, settings?: DbSettings) {
   const assocName = (settings?.association_name || "Association des Chrétiens de Kouassikankro").toUpperCase();
@@ -35,9 +46,17 @@ async function generateCardPDF(member: DbMember, settings?: DbSettings) {
 
   doc.setFillColor(250, 247, 244);
   doc.roundedRect(5, 18, 18, 22, 2, 2, "F");
-  doc.setTextColor(150, 150, 150);
-  doc.setFontSize(5);
-  doc.text("PHOTO", 14, 30, { align: "center" });
+  if (member.photo) {
+    try {
+      const photo = await imageForPdf(member.photo);
+      const fmt = photo.startsWith("data:image/png") ? "PNG" : "JPEG";
+      doc.addImage(photo, fmt, 5.8, 18.8, 16.4, 20.4, undefined, "FAST");
+    } catch {
+      doc.setTextColor(150, 150, 150); doc.setFontSize(5); doc.text("PHOTO", 14, 30, { align: "center" });
+    }
+  } else {
+    doc.setTextColor(150, 150, 150); doc.setFontSize(5); doc.text("PHOTO", 14, 30, { align: "center" });
+  }
 
   doc.setTextColor(250, 247, 244);
   doc.setFontSize(9);
@@ -132,9 +151,7 @@ const Cards = () => {
         {activeMembers.map((m) => (
           <div key={m.id} className="flex items-center justify-between p-4 rounded-lg border border-border/50 bg-card">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm">
-                {m.first_name[0]}{m.last_name[0]}
-              </div>
+              <MemberPhoto member={m} className="w-10 h-10 text-sm" />
               <div>
                 <p className="font-semibold text-sm">{m.last_name} {m.first_name}</p>
                 <p className="text-xs text-accent">{m.member_id}</p>

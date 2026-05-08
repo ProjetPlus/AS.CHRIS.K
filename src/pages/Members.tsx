@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useMembers } from "@/db/useDb";
 import { exportMembersXLSX } from "@/lib/exports";
 import { toast } from "sonner";
+import { MemberPhoto } from "@/components/MemberPhoto";
 
 const statusColors: Record<string, string> = {
   actif: "bg-success-light text-success border-success/20",
@@ -93,9 +94,7 @@ const Members = () => {
             onClick={() => navigate(`/members/${member.id}`)}
             className="w-full text-left p-4 rounded-lg border border-border/50 bg-card hover:border-accent/40 hover:shadow-sm transition-all flex items-center gap-3"
           >
-            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm shrink-0">
-              {member.first_name[0]}{member.last_name[0]}
-            </div>
+            <MemberPhoto member={member} className="w-10 h-10 text-sm" />
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2">
                 <p className="font-semibold text-sm truncate">{member.last_name} {member.first_name}</p>

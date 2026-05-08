@@ -5,6 +5,7 @@ const PREFIX = "ck_cache_";
 const QUEUE_KEY = "ck_sync_queue";
 const USERS_CACHE = "ck_users_cache";
 const SESSION_KEY = "campbethel_user";
+export const CACHE_EVENT = "ck_cache_update";
 
 export function getCache<T>(table: string): T[] {
   try {
@@ -18,6 +19,9 @@ export function getCache<T>(table: string): T[] {
 export function setCache<T>(table: string, data: T[]) {
   try {
     localStorage.setItem(PREFIX + table, JSON.stringify(data));
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent(CACHE_EVENT, { detail: { table } }));
+    }
   } catch (e) {
     console.warn("Cache write failed", table, e);
   }

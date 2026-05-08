@@ -1,6 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Route, Routes, Navigate } from "react-router-dom";
-import { lazy, Suspense } from "react";
+import { Component, lazy, Suspense, type ReactNode } from "react";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -46,27 +46,22 @@ const Sync = lazy(importSync);
 const NotFound = lazy(importNotFound);
 
 /**
- * Smart prefetch: after first paint, idly fetch the most-used routes so
- * navigation feels instant on 2G. Skips when the user is on a slow/save-data
- * connection or offline to avoid wasting their data plan.
+ * Smart prefetch: after first paint, cache route chunks while online so the PWA
+ * can reopen after an offline refresh. On 2G/save-data we only delay more.
  */
 function schedulePrefetch() {
   if (typeof window === "undefined") return;
   const conn: any = (navigator as any).connection;
-  if (conn?.saveData) return;
-  if (conn?.effectiveType && /^(slow-2g|2g)$/.test(conn.effectiveType)) return;
   if (!navigator.onLine) return;
+  const slow = conn?.saveData || (conn?.effectiveType && /^(slow-2g|2g)$/.test(conn.effectiveType));
   const idle = (cb: () => void) =>
-    (window as any).requestIdleCallback ? (window as any).requestIdleCallback(cb, { timeout: 3000 }) : setTimeout(cb, 1500);
+    (window as any).requestIdleCallback ? (window as any).requestIdleCallback(cb, { timeout: slow ? 12000 : 3000 }) : setTimeout(cb, slow ? 8000 : 1500);
   idle(() => {
-    // Most-used screens first
-    importDashboard();
-    importMembers();
-    importScanner();
+    importDashboard(); importMembers(); importScanner();
     idle(() => {
-      importRegisterStep1();
-      importContributions();
-      importDeaths();
+      importRegisterStep1(); importRegisterStep2(); importMemberProfile();
+      importContributions(); importDeaths(); importTreasury();
+      importReports(); importCards(); importSettings(); importSync(); importAccess(); importNotFound();
     });
   });
 }
@@ -74,10 +69,27 @@ if (typeof window !== "undefined") schedulePrefetch();
 
 const queryClient = new QueryClient();
 
-function ProtectedRoute({ children }: { children: React.ReactNode }) {
+function ProtectedRoute({ children }: { children: ReactNode }) {
   const { isAuthenticated } = useAuth();
   if (!isAuthenticated) return <Navigate to="/login" replace />;
   return <>{children}</>;
+}
+
+class ChunkErrorBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
+  state = { failed: false };
+  static getDerivedStateFromError() { return { failed: true }; }
+  render() {
+    if (!this.state.failed) return this.props.children;
+    return (
+      <div className="min-h-screen flex items-center justify-center p-6 text-center bg-background">
+        <div className="max-w-sm space-y-3">
+          <h1 className="text-xl font-display font-bold text-bordeaux-dark">Application hors ligne</h1>
+          <p className="text-sm text-muted-foreground">Cette page n’est pas encore disponible dans le cache local. Revenez à l’accueil ou rouvrez l’application.</p>
+          <button className="px-4 py-2 rounded-md bg-primary text-primary-foreground text-sm" onClick={() => { location.href = "/dashboard"; }}>Revenir au tableau de bord</button>
+        </div>
+      </div>
+    );
+  }
 }
 
 const RouteFallback = () => (
@@ -89,6 +101,7 @@ const RouteFallback = () => (
 const AppRoutes = () => {
   return (
     <BrowserRouter>
+      <ChunkErrorBoundary>
       <Suspense fallback={<RouteFallback />}>
         <Routes>
           <Route path="/" element={<Login />} />
@@ -112,6 +125,7 @@ const AppRoutes = () => {
           <Route path="*" element={<NotFound />} />
         </Routes>
       </Suspense>
+      </ChunkErrorBoundary>
     </BrowserRouter>
   );
 };

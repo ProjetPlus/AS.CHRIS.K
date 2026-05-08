@@ -76,7 +76,7 @@ export function AppSidebar() {
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader className="p-4 flex items-center gap-3">
-        <img src={logo} alt={shortName} className="w-10 h-10 rounded-full shrink-0 bg-white/10 p-1" />
+        <img src={logo} alt={shortName} className="w-10 h-10 rounded-full shrink-0 object-contain" />
         {!collapsed && (
           <div className="flex flex-col leading-tight">
             <span className="text-sidebar-primary font-display font-bold text-sm">{shortName}</span>
