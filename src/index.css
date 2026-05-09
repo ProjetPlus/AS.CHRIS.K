@@ -124,8 +124,20 @@
     @apply bg-background text-foreground antialiased;
     font-family: 'DM Sans', sans-serif;
     font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
-    background-image: linear-gradient(180deg, hsl(var(--background)) 0%, hsl(var(--secondary)) 100%);
+    background-color: hsl(var(--background));
+    background-image:
+      radial-gradient(at 12% 8%, hsl(43 78% 88% / 0.55) 0px, transparent 55%),
+      radial-gradient(at 88% 0%, hsl(345 60% 90% / 0.45) 0px, transparent 50%),
+      radial-gradient(at 50% 100%, hsl(36 50% 88% / 0.6) 0px, transparent 60%),
+      linear-gradient(180deg, hsl(36 50% 95%) 0%, hsl(36 40% 92%) 100%);
     background-attachment: fixed;
+    position: relative;
+  }
+  body::before {
+    content: "";
+    position: fixed; inset: 0; pointer-events: none; z-index: 0;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160' viewBox='0 0 160 160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' seed='4'/><feColorMatrix values='0 0 0 0 0.42 0 0 0 0 0.09 0 0 0 0 0.18 0 0 0 0.06 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+    opacity: 0.5;
   }
 
   h1, h2 {

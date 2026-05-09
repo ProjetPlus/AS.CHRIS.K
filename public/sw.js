@@ -4,7 +4,7 @@
 //   which captures Vite's hashed JS/CSS chunks (/assets/*-[hash].js)
 //   on the first online visit. Subsequent offline loads serve them from cache.
 // - Navigation: network-first (3s timeout) then cached index for SPA routing.
-const CACHE = "aschrisk-v9";
+const CACHE = "aschrisk-v10";
 const PRECACHE = [
   "/",
   "/index.html",
@@ -12,6 +12,7 @@ const PRECACHE = [
   "/favicon.png",
   "/icon-192.png",
   "/icon-512.png",
+  "/apple-touch-icon.png",
 ];
 
 self.addEventListener("install", (e) => {
