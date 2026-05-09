@@ -92,10 +92,24 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "contributions_death_fk"
+            columns: ["death_id"]
+            isOneToOne: false
+            referencedRelation: "deaths"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "contributions_death_id_fkey"
             columns: ["death_id"]
             isOneToOne: false
             referencedRelation: "deaths"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contributions_member_fk"
+            columns: ["member_uuid"]
+            isOneToOne: false
+            referencedRelation: "members"
             referencedColumns: ["id"]
           },
           {
@@ -151,6 +165,13 @@ export type Database = {
           type?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "deaths_deceased_member_fk"
+            columns: ["deceased_member_uuid"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "deaths_deceased_member_uuid_fkey"
             columns: ["deceased_member_uuid"]
