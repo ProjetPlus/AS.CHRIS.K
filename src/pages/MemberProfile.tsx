@@ -273,6 +273,92 @@ const MemberProfile = () => {
           </div>
         </DialogContent>
       </Dialog>
+      <Dialog open={showEdit} onOpenChange={setShowEdit}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Pencil className="h-5 w-5 text-primary" /> Modifier le membre
+            </DialogTitle>
+          </DialogHeader>
+          {editForm && (
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs">Nom</Label>
+                  <Input value={editForm.last_name} onChange={e => setEditForm({ ...editForm, last_name: e.target.value })} />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Prénom</Label>
+                  <Input value={editForm.first_name} onChange={e => setEditForm({ ...editForm, first_name: e.target.value })} />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs">Téléphone</Label>
+                  <Input value={editForm.phone} onChange={e => setEditForm({ ...editForm, phone: e.target.value })} />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Tél. secondaire</Label>
+                  <Input value={editForm.phone_secondary} onChange={e => setEditForm({ ...editForm, phone_secondary: e.target.value })} />
+                </div>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">WhatsApp</Label>
+                <Input value={editForm.whatsapp} onChange={e => setEditForm({ ...editForm, whatsapp: e.target.value })} />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs">Campement</Label>
+                  <Input value={editForm.campement} onChange={e => setEditForm({ ...editForm, campement: e.target.value })} />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Sous-préfecture</Label>
+                  <Input value={editForm.sous_prefecture} onChange={e => setEditForm({ ...editForm, sous_prefecture: e.target.value })} />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs">Type pièce</Label>
+                  <Input value={editForm.id_type} onChange={e => setEditForm({ ...editForm, id_type: e.target.value })} />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">N° pièce</Label>
+                  <Input value={editForm.id_number} onChange={e => setEditForm({ ...editForm, id_number: e.target.value })} />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs">Statut</Label>
+                  <Select value={editForm.status} onValueChange={v => setEditForm({ ...editForm, status: v })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="actif">Actif</SelectItem>
+                      <SelectItem value="suspendu">Suspendu</SelectItem>
+                      <SelectItem value="décédé">Décédé</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Adhésion payée</Label>
+                  <Select value={editForm.adhesion_paid ? "1" : "0"} onValueChange={v => setEditForm({ ...editForm, adhesion_paid: v === "1" })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="1">Oui</SelectItem>
+                      <SelectItem value="0">Non</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="flex justify-end gap-2 pt-2">
+                <Button variant="outline" onClick={() => setShowEdit(false)}>Annuler</Button>
+                <Button className="bg-primary hover:bg-primary/90" onClick={saveEdit}>
+                  <Save className="h-4 w-4 mr-1" /> Enregistrer
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
