@@ -75,12 +75,18 @@ export function AppSidebar() {
 
   return (
     <Sidebar collapsible="icon">
-      <SidebarHeader className="p-4 flex items-center gap-3">
-        <img src={logo} alt={shortName} className="w-10 h-10 rounded-full shrink-0 object-contain" />
+      <SidebarHeader className="p-4 flex items-center gap-3 border-b border-sidebar-border/60">
+        <div className="shrink-0 flex items-center justify-center bg-transparent">
+          <img
+            src={logo}
+            alt={shortName}
+            className={collapsed ? "w-10 h-10 object-contain" : "w-14 h-14 object-contain drop-shadow-sm"}
+          />
+        </div>
         {!collapsed && (
           <div className="flex flex-col leading-tight">
-            <span className="text-sidebar-primary font-display font-bold text-sm">{shortName}</span>
-            <span className="text-sidebar-foreground/60 text-[10px]">Mutuelle Funéraire</span>
+            <span className="text-sidebar-primary font-display font-bold text-base">{shortName}</span>
+            <span className="text-sidebar-foreground/60 text-[10px] tracking-wide">Mutuelle Funéraire</span>
           </div>
         )}
       </SidebarHeader>
