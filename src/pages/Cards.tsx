@@ -10,8 +10,17 @@ import QRCode from "qrcode";
 import jsPDF from "jspdf";
 import { MemberPhoto } from "@/components/MemberPhoto";
 
+// CR80 format
 const CARD_W = 85.6;
 const CARD_H = 54;
+
+// Palette Ivoire & Terracotta (synchronisée avec index.css)
+const IVOIRE = [250, 245, 238] as const;       // #FAF5EE
+const SAND = [232, 213, 196] as const;         // #E8D5C4
+const TERRA = [196, 101, 74] as const;         // #C4654A
+const TERRA_DARK = [133, 64, 42] as const;     // #85402A
+const ANTHRACITE = [45, 45, 45] as const;      // #2D2D2D
+const MUTED = [110, 110, 110] as const;
 
 async function imageForPdf(src: string): Promise<string> {
   if (!src.startsWith("data:image/webp")) return src;
@@ -20,7 +29,7 @@ async function imageForPdf(src: string): Promise<string> {
   });
   const c = document.createElement("canvas"); c.width = img.naturalWidth; c.height = img.naturalHeight;
   c.getContext("2d")?.drawImage(img, 0, 0);
-  return c.toDataURL("image/jpeg", 0.9);
+  return c.toDataURL("image/jpeg", 0.92);
 }
 
 async function generateCardPDF(member: DbMember, settings?: DbSettings) {
@@ -28,86 +37,133 @@ async function generateCardPDF(member: DbMember, settings?: DbSettings) {
   const assocShort = settings?.initials ? `AS.${settings.initials}.K` : "AS.CHRIS.K";
   const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: [CARD_W, CARD_H] });
 
-  doc.setFillColor(107, 26, 46);
+  // ============ RECTO ============
+  // Fond ivoire
+  doc.setFillColor(...IVOIRE);
   doc.rect(0, 0, CARD_W, CARD_H, "F");
 
-  doc.setFillColor(201, 168, 76);
-  doc.rect(0, 0, CARD_W, 14, "F");
+  // Bandeau terracotta fin en haut
+  doc.setFillColor(...TERRA);
+  doc.rect(0, 0, CARD_W, 2.2, "F");
 
-  doc.setTextColor(107, 26, 46);
-  doc.setFontSize(7);
+  // En-tête discret
+  doc.setTextColor(...TERRA_DARK);
   doc.setFont("helvetica", "bold");
-  doc.text("MUTUELLE FUNÉRAIRE", CARD_W / 2, 5, { align: "center" });
-  doc.setFontSize(5);
-  doc.text(assocName.length > 50 ? assocName.slice(0, 50) : assocName, CARD_W / 2, 9, { align: "center" });
-  doc.setFontSize(3.5);
+  doc.setFontSize(5.5);
+  doc.text("MUTUELLE FUNÉRAIRE", 5, 6);
   doc.setFont("helvetica", "normal");
-  doc.text("République de Côte d'Ivoire — Union, Discipline, Travail", CARD_W / 2, 12.5, { align: "center" });
+  doc.setFontSize(4);
+  doc.setTextColor(...MUTED);
+  doc.text("République de Côte d'Ivoire", 5, 8.6);
 
-  doc.setFillColor(250, 247, 244);
-  doc.roundedRect(5, 18, 18, 22, 2, 2, "F");
+  // ID en haut à droite, monospace terracotta
+  doc.setFont("courier", "bold");
+  doc.setFontSize(7);
+  doc.setTextColor(...TERRA);
+  doc.text(member.member_id, CARD_W - 5, 7, { align: "right" });
+
+  // Photo carrée arrondie 22x22mm à gauche
+  const photoX = 5, photoY = 13, photoSize = 22;
+  doc.setFillColor(...SAND);
+  doc.roundedRect(photoX, photoY, photoSize, photoSize, 1.5, 1.5, "F");
   if (member.photo) {
     try {
       const photo = await imageForPdf(member.photo);
       const fmt = photo.startsWith("data:image/png") ? "PNG" : "JPEG";
-      doc.addImage(photo, fmt, 5.8, 18.8, 16.4, 20.4, undefined, "FAST");
+      doc.addImage(photo, fmt, photoX + 0.5, photoY + 0.5, photoSize - 1, photoSize - 1, undefined, "FAST");
     } catch {
-      doc.setTextColor(150, 150, 150); doc.setFontSize(5); doc.text("PHOTO", 14, 30, { align: "center" });
+      doc.setTextColor(...MUTED); doc.setFontSize(5); doc.text("PHOTO", photoX + photoSize / 2, photoY + photoSize / 2, { align: "center" });
     }
   } else {
-    doc.setTextColor(150, 150, 150); doc.setFontSize(5); doc.text("PHOTO", 14, 30, { align: "center" });
+    doc.setTextColor(...MUTED); doc.setFontSize(5); doc.text("PHOTO", photoX + photoSize / 2, photoY + photoSize / 2, { align: "center" });
   }
 
-  doc.setTextColor(250, 247, 244);
-  doc.setFontSize(9);
-  doc.setFont("helvetica", "bold");
-  doc.text(`${member.last_name} ${member.first_name}`, 28, 24);
+  // Nom — très grand, anthracite
+  const infoX = 30;
+  doc.setTextColor(...ANTHRACITE);
+  doc.setFont("times", "bold");
+  doc.setFontSize(11);
+  const fullName = `${member.last_name} ${member.first_name}`;
+  doc.text(fullName.length > 28 ? fullName.slice(0, 28) + "…" : fullName, infoX, 17);
 
-  doc.setFontSize(6);
+  // Ligne fine sand sous le nom
+  doc.setDrawColor(...SAND);
+  doc.setLineWidth(0.3);
+  doc.line(infoX, 18.8, CARD_W - 5, 18.8);
+
+  // Infos secondaires en gris anthracite
   doc.setFont("helvetica", "normal");
-  doc.setTextColor(201, 168, 76);
-  doc.text(member.member_id, 28, 29);
-
-  doc.setTextColor(220, 220, 220);
   doc.setFontSize(5);
-  doc.text(`Campement : ${member.campement}`, 28, 34);
-  doc.text(`S/P : ${member.sous_prefecture}`, 28, 38);
-  doc.text(`Tél : ${member.phone}`, 28, 42);
-  doc.text(`Inscrit le : ${new Date(member.registration_date).toLocaleDateString("fr-FR")}`, 28, 46);
+  doc.setTextColor(...MUTED);
+  doc.text("CAMPEMENT", infoX, 22.5);
+  doc.text("S/PRÉFECTURE", infoX, 27.5);
+  doc.text("TÉLÉPHONE", infoX, 32.5);
 
-  doc.setFillColor(201, 168, 76);
-  doc.roundedRect(60, 42, 22, 8, 1, 1, "F");
-  doc.setTextColor(107, 26, 46);
-  doc.setFontSize(4.5);
   doc.setFont("helvetica", "bold");
-  doc.text(`${member.total_covered_persons} couvert(s)`, 71, 47, { align: "center" });
+  doc.setFontSize(6.5);
+  doc.setTextColor(...ANTHRACITE);
+  doc.text((member.campement || "—").slice(0, 32), infoX, 25);
+  doc.text((member.sous_prefecture || "—").slice(0, 32), infoX, 30);
+  doc.text(member.phone || "—", infoX, 35);
 
+  // Pilule "X couvert(s)" en bas droite
+  doc.setFillColor(...TERRA);
+  doc.roundedRect(CARD_W - 24, 39, 19, 5.5, 2.75, 2.75, "F");
+  doc.setTextColor(...IVOIRE);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(5);
+  doc.text(`${member.total_covered_persons} PERSONNE(S)`, CARD_W - 14.5, 42.5, { align: "center" });
+
+  // Footer recto
+  doc.setDrawColor(...SAND);
+  doc.setLineWidth(0.2);
+  doc.line(5, CARD_H - 4.5, CARD_W - 5, CARD_H - 4.5);
+  doc.setTextColor(...TERRA_DARK);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(5);
+  doc.text(assocShort, 5, CARD_H - 2);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(...MUTED);
+  doc.setFontSize(3.8);
+  doc.text("Inscrit le " + new Date(member.registration_date).toLocaleDateString("fr-FR"), CARD_W - 5, CARD_H - 2, { align: "right" });
+
+  // ============ VERSO ============
   doc.addPage([CARD_W, CARD_H], "landscape");
-
-  doc.setFillColor(250, 247, 244);
+  doc.setFillColor(...IVOIRE);
   doc.rect(0, 0, CARD_W, CARD_H, "F");
 
-  const qrDataUrl = await QRCode.toDataURL(member.member_id, { width: 200, margin: 1, color: { dark: "#6B1A2E", light: "#FAF7F4" } });
-  doc.addImage(qrDataUrl, "PNG", (CARD_W - 24) / 2, 4, 24, 24);
+  // Bandeau terracotta fin en haut
+  doc.setFillColor(...TERRA);
+  doc.rect(0, 0, CARD_W, 2.2, "F");
 
-  doc.setTextColor(107, 26, 46);
-  doc.setFontSize(7);
-  doc.setFont("helvetica", "bold");
-  doc.text(member.member_id, CARD_W / 2, 33, { align: "center" });
+  // QR code grand 32x32mm centré
+  const qrSize = 32;
+  const qrDataUrl = await QRCode.toDataURL(member.member_id, {
+    width: 400, margin: 0,
+    color: { dark: "#2D2D2D", light: "#FAF5EE" },
+  });
+  doc.addImage(qrDataUrl, "PNG", (CARD_W - qrSize) / 2, 5, qrSize, qrSize);
 
-  doc.setTextColor(100, 100, 100);
-  doc.setFontSize(4);
+  // ID en monospace sous le QR
+  doc.setFont("courier", "bold");
+  doc.setFontSize(8);
+  doc.setTextColor(...TERRA);
+  doc.text(member.member_id, CARD_W / 2, 41.5, { align: "center" });
+
+  // Mentions
   doc.setFont("helvetica", "normal");
-  doc.text(`Cette carte est la propriété de ${assocShort}.`, CARD_W / 2, 38, { align: "center" });
-  doc.text("Association des Chrétiens de Kouassikankro.", CARD_W / 2, 41, { align: "center" });
-  doc.text("En cas de perte, veuillez la retourner à l'association.", CARD_W / 2, 44, { align: "center" });
-
-  doc.setFillColor(201, 168, 76);
-  doc.rect(0, CARD_H - 4, CARD_W, 4, "F");
-  doc.setTextColor(107, 26, 46);
   doc.setFontSize(3.5);
+  doc.setTextColor(...MUTED);
+  doc.text("Cette carte est la propriété de l'association.", CARD_W / 2, 45, { align: "center" });
+  doc.text("En cas de perte, merci de la retourner.", CARD_W / 2, 47.5, { align: "center" });
+
+  // Footer terracotta avec nom assoc
+  doc.setFillColor(...TERRA);
+  doc.rect(0, CARD_H - 4, CARD_W, 4, "F");
+  doc.setTextColor(...IVOIRE);
   doc.setFont("helvetica", "bold");
-  doc.text(assocShort, CARD_W / 2, CARD_H - 1.5, { align: "center" });
+  doc.setFontSize(4.5);
+  doc.text(assocShort + " — " + (assocName.length > 50 ? assocName.slice(0, 50) : assocName), CARD_W / 2, CARD_H - 1.4, { align: "center" });
 
   return doc;
 }
@@ -144,7 +200,7 @@ const Cards = () => {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl md:text-3xl font-display font-bold text-bordeaux-dark">Cartes de membre</h1>
-        <p className="text-sm text-muted-foreground mt-1">Génération de cartes CR80 recto/verso avec QR code</p>
+        <p className="text-sm text-muted-foreground mt-1">Style moderne épuré — fond ivoire, QR proéminent</p>
       </div>
 
       <div className="space-y-2">

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Phone, CreditCard, UserPlus, Users, Coins, Trash2 } from "lucide-react";
+import { ArrowLeft, Phone, CreditCard, UserPlus, Users, Coins, Trash2, Pencil, Save } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -16,11 +17,45 @@ import { MemberPhoto } from "@/components/MemberPhoto";
 const MemberProfile = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const member = useMember(id);
   const contributions = useContributionsForMember(member?.member_id ?? "");
   const { updateMember } = useMembers();
   const [showAddSecondary, setShowAddSecondary] = useState(false);
   const [newSecondary, setNewSecondary] = useState({ name: "", relationship: "", dateOfBirth: "" });
+  const [showEdit, setShowEdit] = useState(false);
+  const [editForm, setEditForm] = useState<any>(null);
+
+  const canEdit = user && ["super_admin", "admin", "membres"].includes(user.role);
+
+  const openEdit = () => {
+    if (!member) return;
+    setEditForm({
+      first_name: member.first_name,
+      last_name: member.last_name,
+      phone: member.phone,
+      phone_secondary: member.phone_secondary || "",
+      whatsapp: member.whatsapp || "",
+      campement: member.campement,
+      sous_prefecture: member.sous_prefecture,
+      id_type: member.id_type,
+      id_number: member.id_number || "",
+      status: member.status,
+      adhesion_paid: member.adhesion_paid,
+    });
+    setShowEdit(true);
+  };
+
+  const saveEdit = async () => {
+    if (!member || !editForm) return;
+    try {
+      await updateMember(member.id, editForm);
+      toast.success("Membre mis à jour");
+      setShowEdit(false);
+    } catch (e: any) {
+      toast.error("Erreur", { description: e?.message || "Impossible de sauvegarder" });
+    }
+  };
 
   if (!member) {
     return (
@@ -189,6 +224,11 @@ const MemberProfile = () => {
       </Card>
 
       <div className="flex flex-wrap gap-2">
+        {canEdit && (
+          <Button variant="outline" onClick={openEdit}>
+            <Pencil className="h-4 w-4 mr-1" /> Modifier
+          </Button>
+        )}
         <Button className="bg-accent hover:bg-accent/90 text-accent-foreground" onClick={() => navigate(`/cards?member=${member.id}`)}>
           <CreditCard className="h-4 w-4 mr-1" /> Générer la carte
         </Button>
@@ -231,6 +271,92 @@ const MemberProfile = () => {
               </Button>
             </div>
           </div>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={showEdit} onOpenChange={setShowEdit}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Pencil className="h-5 w-5 text-primary" /> Modifier le membre
+            </DialogTitle>
+          </DialogHeader>
+          {editForm && (
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs">Nom</Label>
+                  <Input value={editForm.last_name} onChange={e => setEditForm({ ...editForm, last_name: e.target.value })} />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Prénom</Label>
+                  <Input value={editForm.first_name} onChange={e => setEditForm({ ...editForm, first_name: e.target.value })} />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs">Téléphone</Label>
+                  <Input value={editForm.phone} onChange={e => setEditForm({ ...editForm, phone: e.target.value })} />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Tél. secondaire</Label>
+                  <Input value={editForm.phone_secondary} onChange={e => setEditForm({ ...editForm, phone_secondary: e.target.value })} />
+                </div>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">WhatsApp</Label>
+                <Input value={editForm.whatsapp} onChange={e => setEditForm({ ...editForm, whatsapp: e.target.value })} />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs">Campement</Label>
+                  <Input value={editForm.campement} onChange={e => setEditForm({ ...editForm, campement: e.target.value })} />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Sous-préfecture</Label>
+                  <Input value={editForm.sous_prefecture} onChange={e => setEditForm({ ...editForm, sous_prefecture: e.target.value })} />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs">Type pièce</Label>
+                  <Input value={editForm.id_type} onChange={e => setEditForm({ ...editForm, id_type: e.target.value })} />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">N° pièce</Label>
+                  <Input value={editForm.id_number} onChange={e => setEditForm({ ...editForm, id_number: e.target.value })} />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs">Statut</Label>
+                  <Select value={editForm.status} onValueChange={v => setEditForm({ ...editForm, status: v })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="actif">Actif</SelectItem>
+                      <SelectItem value="suspendu">Suspendu</SelectItem>
+                      <SelectItem value="décédé">Décédé</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Adhésion payée</Label>
+                  <Select value={editForm.adhesion_paid ? "1" : "0"} onValueChange={v => setEditForm({ ...editForm, adhesion_paid: v === "1" })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="1">Oui</SelectItem>
+                      <SelectItem value="0">Non</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="flex justify-end gap-2 pt-2">
+                <Button variant="outline" onClick={() => setShowEdit(false)}>Annuler</Button>
+                <Button className="bg-primary hover:bg-primary/90" onClick={saveEdit}>
+                  <Save className="h-4 w-4 mr-1" /> Enregistrer
+                </Button>
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>
