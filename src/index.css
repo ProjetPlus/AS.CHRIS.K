@@ -6,71 +6,73 @@
 
 @layer base {
   :root {
-    /* AS.CHRIS.K — Mutuelle / Associative palette
-       Inspirée du logo "arbre de mains" : bordeaux profond + or chaud
-       + touches multicolores (vert, bleu, rose) en accents secondaires.
-       Contrastes renforcés pour une lisibilité maximale. */
-    --background: 36 46% 96%;        /* Crème chaud, moins blanc */
-    --foreground: 0 0% 8%;           /* #141414 Noir profond — lisibilité max */
+    /* AS.CHRIS.K — Palette Ivoire & Terracotta
+       Crème ivoire chaud + accents terracotta argileux.
+       Inspirée des terres d'Afrique de l'Ouest, sobre et chaleureux. */
+    --background: 36 56% 96%;        /* #FAF5EE Ivoire crème */
+    --foreground: 0 0% 12%;          /* #1F1F1F Anthracite */
 
-    --card: 36 60% 99%;
-    --card-foreground: 0 0% 8%;
+    --card: 36 60% 99%;              /* Carte légèrement plus claire */
+    --card-foreground: 0 0% 12%;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 8%;
+    --popover: 36 60% 99%;
+    --popover-foreground: 0 0% 12%;
 
-    --primary: 345 70% 24%;          /* #6B1626 Bordeaux profond */
-    --primary-foreground: 40 70% 97%;
+    --primary: 12 50% 53%;           /* #C4654A Terracotta */
+    --primary-foreground: 36 56% 97%;
 
-    --secondary: 36 40% 94%;         /* #F4ECDF Crème chaud */
-    --secondary-foreground: 345 70% 22%;
+    --secondary: 24 50% 84%;         /* #E8D5C4 Sable doux */
+    --secondary-foreground: 12 60% 22%;
 
-    --muted: 36 25% 92%;
-    --muted-foreground: 0 0% 28%;    /* #474747 — contraste AA renforcé */
+    --muted: 30 35% 91%;
+    --muted-foreground: 0 0% 32%;
 
-    --accent: 43 78% 48%;            /* #D9A222 Or saturé */
-    --accent-foreground: 0 0% 100%;
+    --accent: 18 55% 48%;            /* #B85A38 Terracotta foncé */
+    --accent-foreground: 36 56% 97%;
 
-    --destructive: 6 78% 52%;        /* #E63E2E */
+    --destructive: 6 72% 50%;
     --destructive-foreground: 0 0% 100%;
 
-    --success: 152 65% 28%;          /* #1A7A52 Vert mutuelle */
+    --success: 152 55% 32%;          /* Vert mutuelle conservé pour CI */
     --success-foreground: 0 0% 100%;
-    --success-light: 145 50% 92%;
+    --success-light: 145 45% 92%;
 
-    --warning: 28 85% 50%;
+    --warning: 32 85% 52%;
     --warning-foreground: 0 0% 100%;
 
-    --info-bg: 43 88% 93%;
+    --info-bg: 24 60% 93%;
 
-    --bordeaux-dark: 345 75% 16%;
-    --bordeaux: 345 70% 24%;
-    --or: 43 78% 48%;
-    --or-light: 43 80% 92%;
-    --bordeaux-pale: 340 35% 94%;
-    --creme: 36 46% 96%;
-    --destructive-light: 6 90% 96%;
+    /* Legacy tokens remappés vers la nouvelle palette
+       (assure la rétrocompatibilité des classes .bordeaux/.or partout) */
+    --bordeaux-dark: 12 60% 32%;     /* Anciennement bordeaux foncé → terracotta foncé */
+    --bordeaux: 12 50% 53%;          /* → Terracotta principal */
+    --or: 18 55% 48%;                /* → Terracotta accent */
+    --or-light: 24 60% 93%;
+    --bordeaux-pale: 24 50% 92%;
+    --creme: 36 56% 96%;
+    --destructive-light: 6 75% 95%;
 
-    /* Accents associatifs (rappel logo) */
-    --hand-blue: 210 78% 48%;
-    --hand-green: 142 60% 42%;
-    --hand-pink: 340 80% 62%;
-    --hand-yellow: 48 92% 56%;
+    /* Accents associatifs — conservés pour graphiques multicolores */
+    --hand-blue: 210 65% 48%;
+    --hand-green: 152 55% 38%;
+    --hand-pink: 340 60% 60%;
+    --hand-yellow: 38 85% 56%;
 
-    --border: 36 22% 84%;            /* bordures plus visibles */
-    --input: 36 22% 80%;
-    --ring: 43 78% 48%;
+    --border: 28 28% 82%;
+    --input: 28 28% 80%;
+    --ring: 12 50% 53%;
 
-    --radius: 0.625rem;
+    --radius: 0.75rem;
 
-    --sidebar-background: 345 75% 14%;   /* #3D0C18 bordeaux très foncé */
-    --sidebar-foreground: 40 70% 96%;
-    --sidebar-primary: 43 82% 58%;       /* Or lumineux */
-    --sidebar-primary-foreground: 345 75% 14%;
-    --sidebar-accent: 345 55% 22%;
-    --sidebar-accent-foreground: 40 70% 96%;
-    --sidebar-border: 345 55% 22%;
-    --sidebar-ring: 43 82% 58%;
+    /* Sidebar — Ivoire chaud, fini le fond foncé */
+    --sidebar-background: 36 50% 95%;     /* #F7EFE2 Ivoire chaud */
+    --sidebar-foreground: 0 0% 18%;       /* Anthracite lisible */
+    --sidebar-primary: 12 55% 45%;        /* Terracotta soutenu pour actifs */
+    --sidebar-primary-foreground: 36 56% 97%;
+    --sidebar-accent: 30 45% 90%;         /* Sable très clair pour hover */
+    --sidebar-accent-foreground: 12 55% 32%;
+    --sidebar-border: 28 30% 86%;
+    --sidebar-ring: 12 50% 53%;
   }
 
   .dark {
