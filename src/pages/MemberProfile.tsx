@@ -224,6 +224,11 @@ const MemberProfile = () => {
       </Card>
 
       <div className="flex flex-wrap gap-2">
+        {canEdit && (
+          <Button variant="outline" onClick={openEdit}>
+            <Pencil className="h-4 w-4 mr-1" /> Modifier
+          </Button>
+        )}
         <Button className="bg-accent hover:bg-accent/90 text-accent-foreground" onClick={() => navigate(`/cards?member=${member.id}`)}>
           <CreditCard className="h-4 w-4 mr-1" /> Générer la carte
         </Button>
