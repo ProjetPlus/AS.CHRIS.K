@@ -17,11 +17,45 @@ import { MemberPhoto } from "@/components/MemberPhoto";
 const MemberProfile = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const member = useMember(id);
   const contributions = useContributionsForMember(member?.member_id ?? "");
   const { updateMember } = useMembers();
   const [showAddSecondary, setShowAddSecondary] = useState(false);
   const [newSecondary, setNewSecondary] = useState({ name: "", relationship: "", dateOfBirth: "" });
+  const [showEdit, setShowEdit] = useState(false);
+  const [editForm, setEditForm] = useState<any>(null);
+
+  const canEdit = user && ["super_admin", "admin", "membres"].includes(user.role);
+
+  const openEdit = () => {
+    if (!member) return;
+    setEditForm({
+      first_name: member.first_name,
+      last_name: member.last_name,
+      phone: member.phone,
+      phone_secondary: member.phone_secondary || "",
+      whatsapp: member.whatsapp || "",
+      campement: member.campement,
+      sous_prefecture: member.sous_prefecture,
+      id_type: member.id_type,
+      id_number: member.id_number || "",
+      status: member.status,
+      adhesion_paid: member.adhesion_paid,
+    });
+    setShowEdit(true);
+  };
+
+  const saveEdit = async () => {
+    if (!member || !editForm) return;
+    try {
+      await updateMember(member.id, editForm);
+      toast.success("Membre mis à jour");
+      setShowEdit(false);
+    } catch (e: any) {
+      toast.error("Erreur", { description: e?.message || "Impossible de sauvegarder" });
+    }
+  };
 
   if (!member) {
     return (
