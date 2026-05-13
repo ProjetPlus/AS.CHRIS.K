@@ -51,7 +51,7 @@ const Login = () => {
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
       <div className="w-full max-w-sm flex flex-col items-center gap-6">
         <div className="flex flex-col items-center gap-3">
-          <img src={logo} alt={associationName} className="w-36 h-36 object-contain drop-shadow-xl bg-transparent" />
+          <img src={logo} alt={associationName} className="h-44 w-auto object-contain drop-shadow-xl bg-transparent" />
           <h1 className="text-xl font-display font-bold text-bordeaux-dark text-center leading-tight uppercase">
             {associationName}
           </h1>

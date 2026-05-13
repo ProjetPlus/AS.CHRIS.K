@@ -80,7 +80,7 @@ export function AppSidebar() {
           <img
             src={logo}
             alt={shortName}
-            className={collapsed ? "w-10 h-10 object-contain" : "w-14 h-14 object-contain drop-shadow-sm"}
+            className={collapsed ? "h-10 w-auto object-contain" : "h-16 w-auto object-contain drop-shadow-sm"}
           />
         </div>
         {!collapsed && (
