@@ -48,6 +48,7 @@ const MemberProfile = () => {
 
   const saveEdit = async () => {
     if (!member || !editForm) return;
+    if (!canEdit) { toast.error("Permission refusée — réservé super_admin/admin/membres"); return; }
     try {
       await updateMember(member.id, editForm);
       toast.success("Membre mis à jour");
@@ -75,6 +76,7 @@ const MemberProfile = () => {
   const secondaryMembers = (member.secondary_members || []) as DbSecondaryMember[];
 
   const handleAddSecondary = async () => {
+    if (!canEdit) { toast.error("Permission refusée"); return; }
     if (!newSecondary.name || !newSecondary.relationship) {
       toast.error("Nom et lien de parenté requis");
       return;
@@ -104,6 +106,7 @@ const MemberProfile = () => {
   };
 
   const handleRemoveSecondary = async (smId: string) => {
+    if (!canEdit) { toast.error("Permission refusée"); return; }
     const updatedSecondary = secondaryMembers.filter(s => s.id !== smId);
     await updateMember(member.id, {
       secondary_members: updatedSecondary as any,
@@ -156,7 +159,7 @@ const MemberProfile = () => {
               <span className="flex items-center gap-2">
                 <Users className="h-4 w-4 text-primary" /> Membres secondaires ({secondaryMembers.length}/2)
               </span>
-              {secondaryMembers.length < 2 && (
+              {canEdit && secondaryMembers.length < 2 && (
                 <Button size="sm" variant="outline" className="text-xs h-7" onClick={() => setShowAddSecondary(true)}>
                   <UserPlus className="h-3 w-3 mr-1" /> Ajouter
                 </Button>
@@ -178,9 +181,11 @@ const MemberProfile = () => {
                       <Badge variant="outline" className={sm.status === "vivant" ? "text-success border-success/20 text-[10px]" : "text-destructive border-destructive/20 text-[10px]"}>
                         {sm.status}
                       </Badge>
-                      <Button size="icon" variant="ghost" className="h-6 w-6 text-destructive hover:text-destructive" onClick={() => handleRemoveSecondary(sm.id)}>
-                        <Trash2 className="h-3 w-3" />
-                      </Button>
+                      {canEdit && (
+                        <Button size="icon" variant="ghost" className="h-6 w-6 text-destructive hover:text-destructive" onClick={() => handleRemoveSecondary(sm.id)}>
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      )}
                     </div>
                   </div>
                 ))}
